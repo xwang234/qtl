@@ -73,6 +73,15 @@ tmp[,4]=1
 tmp[1,]=c(0,0,0,"D")
 write.table(tmp,file=samplefile,row.names = F,sep=" ",quote=F)
 
+samplefile="../result/imputation4/SNP6_allsamplefile.txt"
+tmp=data.frame(matrix(NA,nrow=453,ncol=4),stringsAsFactors = F)
+colnames(tmp)=c("ID_1","ID_2","missing","sex")
+tmp[,1]=tmp[,2]=0:452
+tmp[,3]=0
+tmp[,4]=1
+tmp[1,]=c(0,0,0,"D")
+write.table(tmp,file=samplefile,row.names = F,sep=" ",quote=F)
+
 pca <- prcomp(t(expr[-1]), center=TRUE, scale = TRUE)
 pc <- pca$x
 covar <- SlicedData$new()

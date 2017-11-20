@@ -3,73 +3,73 @@ library(GenomicRanges)
 library(sas7bdat)
 library(gdata)
 
-impfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation"
+impfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4"
 #first combine ChrX imputations
-impchrX_par1=read.table(paste0(impfolder,"/SNP6_imp_chrX_par1.txt"),stringsAsFactors = F)
-doschrX_par1=read.table(paste0(impfolder,"/SNP6_imputed_dosages_chrX_par1.txt"),stringsAsFactors = F)
-infchrX_par1=read.table(paste0(impfolder,"/SNP6_imp_chrX_par1.txt_info"),header=T,stringsAsFactors = F)
-sum(impchrX_par1$V2==infchrX_par1$rs_id)
-impchrX_par2=read.table(paste0(impfolder,"/SNP6_imp_chrX_par2.txt"),stringsAsFactors = F)
-doschrX_par2=read.table(paste0(impfolder,"/SNP6_imputed_dosages_chrX_par2.txt"),stringsAsFactors = F)
-infchrX_par2=read.table(paste0(impfolder,"/SNP6_imp_chrX_par2.txt_info"),header=T,stringsAsFactors = F)
-sum(impchrX_par2$V2==infchrX_par2$rs_id)
-impchrX_nonpar=read.table(paste0(impfolder,"/SNP6_imp_chrX_nonpar.txt"),stringsAsFactors = F)
-doschrX_nonpar=read.table(paste0(impfolder,"/SNP6_imputed_dosages_chrX_nonpar.txt"),stringsAsFactors = F)
-infchrX_nonpar=read.table(paste0(impfolder,"/SNP6_info_chrX_nonpar.txt"),header=T,stringsAsFactors = F)
-nrow(infchrX_nonpar)
-#[1] 36004
-nrow(doschrX_nonpar)
-#[1] 35974
-nrow(impchrX_nonpar)
-#[1] 35974
-idx=match(impchrX_nonpar$V2,infchrX_nonpar$rs_id)
-infchrX_nonpar1=infchrX_nonpar[idx,]
-sum(infchrX_nonpar1$rs_id==impchrX_nonpar$V2)
-doschrX=rbind(doschrX_par1,doschrX_nonpar,doschrX_par2)
-infchrX=rbind(infchrX_par1[,1:9],infchrX_nonpar1,infchrX_par2[,1:9])
+impchrX_PAR1=read.table(paste0(impfolder,"/SNP6_imp_chrX_PAR1.txt"),stringsAsFactors = F)
+doschrX_PAR1=read.table(paste0(impfolder,"/SNP6_imputed_dosages_chrX_PAR1.txt"),stringsAsFactors = F)
+infchrX_PAR1=read.table(paste0(impfolder,"/SNP6_info_chrX_PAR1.txt"),header=T,stringsAsFactors = F)
+sum(impchrX_PAR1$V2==infchrX_PAR1$rs_id)
+impchrX_PAR2=read.table(paste0(impfolder,"/SNP6_imp_chrX_PAR2.txt"),stringsAsFactors = F)
+doschrX_PAR2=read.table(paste0(impfolder,"/SNP6_imputed_dosages_chrX_PAR2.txt"),stringsAsFactors = F)
+infchrX_PAR2=read.table(paste0(impfolder,"/SNP6_info_chrX_PAR2.txt"),header=T,stringsAsFactors = F)
+sum(impchrX_PAR2$V2==infchrX_PAR2$rs_id)
+impchrX_nonPAR=fread(paste0(impfolder,"/SNP6_imp_chrX_nonPAR.txt"),stringsAsFactors = F)
+impchrX_nonPAR=as.data.frame(impchrX_nonPAR)
+doschrX_nonPAR=fread(paste0(impfolder,"/SNP6_imputed_dosages_chrX_nonPAR.txt"),stringsAsFactors = F)
+doschrX_nonPAR=as.data.frame(doschrX_nonPAR)
+infchrX_nonPAR=read.table(paste0(impfolder,"/SNP6_info_chrX_nonPAR.txt"),header=T,stringsAsFactors = F)
+nrow(infchrX_nonPAR)
+#[1] 1482545
+nrow(doschrX_nonPAR)
+#[1] 1482545
+nrow(impchrX_nonPAR)
+#[1] 1482545
+idx=match(impchrX_nonPAR$V2,infchrX_nonPAR$rs_id)
+infchrX_nonPAR=infchrX_nonPAR[idx,]
+sum(infchrX_nonPAR$rs_id==impchrX_nonPAR$V2)
+doschrX=rbind(doschrX_PAR1,doschrX_nonPAR,doschrX_PAR2)
+infchrX=rbind(infchrX_PAR1,infchrX_nonPAR,infchrX_PAR2)
 write.table(doschrX,file=paste0(impfolder,"/SNP6_imputed_dosages_chr23.txt"),row.names = F,col.names = F,sep="\t",quote=F)
-write.table(infchrX,file=paste0(impfolder,"/SNP6_info1_chr23.txt"),row.names = F,col.names = T,sep=" ",quote=F)
+write.table(infchrX,file=paste0(impfolder,"/SNP6_info_chr23.txt"),row.names = F,col.names = T,sep=" ",quote=F)
 
-process_imput=function(dosfile,impfile,inffile,inffile1)
-{
-  dos=fread(dosfile,stringsAsFactors = F)
-  dos=as.data.frame(dos)
-  imp=fread(impfile,stringsAsFactors = F)
-  imp=as.data.frame(imp)
-  inf=fread(inffile,header=T,stringsAsFactors = F) #contains multiple headers
-  inf=as.data.frame(inf)
-  idx=match(imp$V2,inf$rs_id)
-  inf1=inf[idx,]
-  print(sum(inf1$rs_id==imp$V2)==nrow(imp))
-  print(nrow(dos))
-  print(nrow(inf))
-  write.table(inf1,inffile1,row.names = F,col.names = T,sep=" ",quote=F)
-}
-for (i in 22:22)
-{
-  print(i)
-  dosfile=paste0(impfolder,"/SNP6_imputed_dosages_chr",i,".txt")
-  impfile=paste0(impfolder,"/SNP6_imp_chr",i,".txt")
-  inffile=paste0(impfolder,"/SNP6_info_chr",i,".txt")
-  inffile1=paste0(impfolder,"/SNP6_info1_chr",i,".txt")
-  process_imput(dosfile,impfile,inffile,inffile1)
-}
+#the headers of info file were removed
+# process_imput=function(dosfile,impfile,inffile,inffile1)
+# {
+#   dos=fread(dosfile,stringsAsFactors = F)
+#   dos=as.data.frame(dos)
+#   imp=fread(impfile,stringsAsFactors = F)
+#   imp=as.data.frame(imp)
+#   inf=fread(inffile,header=T,stringsAsFactors = F) #contains multiple headers
+#   inf=as.data.frame(inf)
+#   idx=match(imp$V2,inf$rs_id)
+#   inf1=inf[idx,]
+#   print(sum(inf1$rs_id==imp$V2)==nrow(imp))
+#   print(nrow(dos))
+#   print(nrow(inf))
+#   write.table(inf1,inffile1,row.names = F,col.names = T,sep=" ",quote=F)
+# }
+# for (i in 22:22)
+# {
+#   print(i)
+#   dosfile=paste0(impfolder,"/SNP6_imputed_dosages_chr",i,".txt")
+#   impfile=paste0(impfolder,"/SNP6_imp_chr",i,".txt")
+#   inffile=paste0(impfolder,"/SNP6_info_chr",i,".txt")
+#   inffile1=paste0(impfolder,"/SNP6_info1_chr",i,".txt")
+#   process_imput(dosfile,impfile,inffile,inffile1)
+# }
 
-impfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation2"
-tmp=read.table(paste0(impfolder,"/SNP6_imputed_dosages_chr1.txt"),stringsAsFactors = F)
-tmp1=read.table(paste0(impfolder,"/SNP6_info_chr22.txt"),header=T,stringsAsFactors = F)
-tmp2=read.table(paste0(impfolder,"/SNP6_info_chr22.txt"),header=T,stringsAsFactors = F)
-#shapeit prephasing
-impfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation1"
-for (i in 22:22)
-{
-  print(i)
-  dosfile=paste0(impfolder,"/SNP6_imputed_dosages_chr",i,".txt")
-  impfile=paste0(impfolder,"/SNP6_imp_chr",i,".txt")
-  inffile=paste0(impfolder,"/SNP6_info_chr",i,".txt")
-  inffile1=paste0(impfolder,"/SNP6_info1_chr",i,".txt")
-  process_imput(dosfile,impfile,inffile,inffile1)
-}
+# impfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation2"
+# #shapeit prephasing
+# impfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation1"
+# for (i in 22:22)
+# {
+#   print(i)
+#   dosfile=paste0(impfolder,"/SNP6_imputed_dosages_chr",i,".txt")
+#   impfile=paste0(impfolder,"/SNP6_imp_chr",i,".txt")
+#   inffile=paste0(impfolder,"/SNP6_info_chr",i,".txt")
+#   inffile1=paste0(impfolder,"/SNP6_info1_chr",i,".txt")
+#   process_imput(dosfile,impfile,inffile,inffile1)
+# }
 
 #compare imputation scores
 
@@ -102,31 +102,25 @@ comp_imput=function(inffile1,inffile2,chr,inf1col=7,inf2col=10)
   nsnp2=nrow(inf2)
   compos=intersect(inf1$position,inf2$position)
   
-  # allpos=unique(c(inf1$position,inf2$position))
-  # allpos=allpos[order(allpos)]
-  # postable=data.frame(matrix(NA,nrow=length(allpos),ncol=6))
-  # colnames(postable)=c("position","com","inf1","inf2","genotyped1","genotyped2")
-  # postable$position=allpos
-  # idx=which(allpos %in% compos)
-  # postable$com=0
-  # postable$com[idx]=1
-  # idx=which(allpos %in% inf1$position & !allpos %in% inf2$position)
-  # postable$inf1=0
-  # postable$inf1[idx]=1
-  # idx=which(allpos %in% inf2$position & !allpos %in% inf1$position)
-  # postable$inf2=0
-  # postable$inf2[idx]=1
-  # idx=which(allpos %in% inf1$position[inf1$genotyped==1])
-  # postable$genotyped1=0
-  # postable$genotyped1[idx]=1
-  # idx=which(allpos %in% inf1$position[inf2$genotyped==1])
-  # postable$genotyped2=0
-  # postable$genotyped2[idx]=1
+  # #check referenced SNPs
+  # idx1=which(inf1$snp_id=="---")
+  # refinf1=inf1[idx1,]
+  # idx2=which(inf2$snp_id=="---")
+  # refinf2=inf2[idx2,]
   # #legend file
-  # legendtable=fread("/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr22.legend")
-  # sum(allpos %in% legendtable$position)
-  # postable1=merge(postable,legendtable,by="position")
- 
+  # legendtable=fread(paste0("/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr",chr,".legend"))
+  # legendtable=as.data.frame(legendtable)
+  # sum(refinf1$rs_id %in% legendtable$id)
+  # sum(refinf2$rs_id %in% legendtable$id)
+  # #which(!refinf2$rs_id %in% legendtable$id)
+  # refinf1=merge(refinf1,legendtable,by.x="rs_id",by.y="id")
+  # refinf2=merge(refinf2,legendtable,by.x="rs_id",by.y="id")
+  # sum(refinf2$rs_id %in% refinf1$rs_id)
+  # #only appear in refinf1
+  # idx=which(!refinf1$rs_id %in% refinf2$rs_id)
+  # test=refinf1[idx,]
+  # sum(test$SAS<=0.001)
+  # #it turned out they only use EUR and EAS, and didn't use SAS
   
   idx1=match(compos,inf1$position)
   inf11=inf1[idx1,]
@@ -201,25 +195,30 @@ par(mar=c(5.1,5.1,4.1,2.1))
 boxplot(compres$nsnp12/compres$nsnp2, cex.names=1.4,cex.axis=1.4,ylab="Proportion of overlap",cex.lab=1.4)
 dev.off()
 
-extract_highrisk2=function(pre1="SNP6_info1_",pre11="SNP6_imputed_dosages_")
+extract_highrisk2=function(pre1="SNP6_info_",pre11="SNP6_imputed_dosages_")
 {
-  load("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/TCGAnormals.RData")
-  load("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/allhighrisksnps_new.RData")
-  impfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3"
+  library(gdata)
+  load("/fh/fast/stanford_j/Xiaoyu/QTL/data/TCGAnormals.RData")
+  load("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/allhighrisksnps_new.RData") #the order of highrisk and allsnps are not the same!
+  impfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4"
   newsnps=read.xls("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/RESUB_Supplementary_Table16_v9.xlsx",skip=1,sep=",")
   newsnps=newsnps[1:147,1:4]
   colnames(newsnps)=c("snp","chr","position","source")
   
   allsnps=cbind(newsnps,info=NA,exp_freq_a1=NA)
   
-  highrisk=highrisk[,1:5]
+  highrisk=data.frame(matrix(NA,nrow=nrow(newsnps),ncol=5))
+  colnames(highrisk)=c("chr","V1","V2","V3","V4")
+  highrisk$chr=newsnps$chr
+  highrisk$V1=newsnps$snp
+  highrisk$V1=as.character(highrisk$V1)
+  highrisk$V2=newsnps$position
   highrisk=cbind.data.frame(highrisk,data.frame(matrix(nrow=nrow(highrisk),ncol=ncol(genotypedata))))
   colnames(highrisk)[6:ncol(highrisk)]=colnames(genotypedata)
-  chrs=1:22
+  chrs=1:23
   
   for (chr in chrs)
   {
-    if (chr==23) impfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3"
     idxs=which(allsnps$chr==chr)
     if (length(idxs)>0)
     {
@@ -229,7 +228,7 @@ extract_highrisk2=function(pre1="SNP6_info1_",pre11="SNP6_imputed_dosages_")
       print(chr)
       infotable=fread(paste0(impfolder,"/",pre1,"chr",chr,".txt"),fill = T)
       imputetable=fread(paste0(impfolder,"/",pre11,"chr",chr,".txt"))
-      imputetable=imputetable[,1:35]
+      imputetable=imputetable[,1:ncol(genotypedata)]
       colnames(imputetable)=colnames(genotypedata) #from load
 
       for (i in idxs)
@@ -237,24 +236,31 @@ extract_highrisk2=function(pre1="SNP6_info1_",pre11="SNP6_imputed_dosages_")
         idx=which(infotable$position==allsnps$pos[i])
         if (length(idx)>0)
         {
+          if (length(idx)>1) print(paste0(i," has multype snps"))
           idx1=which.max(infotable$info[idx])
           if (length(idx1)>0)
           {
             allsnps$info[i]=infotable$info[idx[idx1]]
             allsnps$exp_freq_a1[i]=infotable$exp_freq_a1[idx[idx1]]
             highrisk[i,6:ncol(highrisk)]=as.numeric(imputetable[idx[idx1],])
+            highrisk$V1[i]=infotable$rs_id[idx[idx1]]
+            highrisk$V3[i]=infotable$a0[idx[idx1]]
+            highrisk$V4[i]=infotable$a1[idx[idx1]]
           }
         }
       }  
     }
   }
+  highrisk$chr=as.integer(highrisk$chr)
+  highrisk$V2=as.integer(highrisk$V2)
+  highrisk=highrisk[order(highrisk$chr,highrisk$V2),]
   allsnps$chr=gsub(23,"X",allsnps$chr)
   allsnps$chr=gsub(24,"Y",allsnps$chr)
   highrisk$chr=gsub(23,"X",highrisk$chr)
   highrisk$chr=gsub(24,"Y",highrisk$chr)
   print(sum(is.na(allsnps$info)))
-  print(mean(allsnps$info,na.rm=T)) #0.928
-  print(median(allsnps$info,na.rm=T)) #0.982
+  print(mean(allsnps$info,na.rm=T)) #0.954
+  print(median(allsnps$info,na.rm=T)) #0.984
   save(allsnps,highrisk,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/TCGA_allhighrisksnps_new.RData")
   return(allsnps)
 }

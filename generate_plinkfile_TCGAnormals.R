@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 #generate pad file and map file for plink
-load("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/TCGAnormals.RData")
+#load("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/TCGAnormals.RData")
+load("/fh/fast/stanford_j/Xiaoyu/QTL/data/TCGAnormals.RData")
 snp6_anno <- read.table(file="/fh/fast/dai_j/CancerGenomics/Tools/database/other/GenomeWideSNP_6.na35.annot.csv",skip=18,header=T,sep=",",stringsAsFactors=F)
 #the SNP probes:
 sum(rownames(genotypedata) %in% snp6_anno$Probe.Set.ID)==nrow(genotypedata)
@@ -12,7 +13,9 @@ snp6_anno$Physical.Position=as.integer(snp6_anno$Physical.Position)
 #outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation1/plink"
 
 #the input files including all normals 496
-outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3/plink"
+#outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3/plink"
+#67 +385 other blood
+outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4/plink"
 #create ped files for each chr
 #http://zzz.bwh.harvard.edu/plink/data.shtml#ped
 # Family ID
@@ -26,7 +29,7 @@ outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3/plink"
 # rs# or snp identifier
 # Genetic distance (morgans)
 # Base-pair position (bp units)
-generateped_map=function(snp6_anno,genotypedata,chr)
+generateped_map=function(chr,genotypedata)
 {
   if (chr==23) chr="X"
   idx=which(snp6_anno$Chromosome==chr & !is.na(snp6_anno$Physical.Position))
@@ -103,17 +106,32 @@ generateped_map=function(snp6_anno,genotypedata,chr)
   idxflip=which(annochrtable$Strand=="-")
   flip=data.frame(snpid=map[idxflip,2],stringsAsFactors = F)
   write.table(flip,file=fliplistfile,col.names = F,row.names = F,sep="\t",quote=F)
+  return(0)
 }
-for (chr in 2:21)
-{
-  cat(chr,'..')
-  generateped_map(snp6_anno,genotypedata,chr)
-}
+# for (chr in 1:23)
+# {
+#   cat(chr,'..')
+#   generateped_map(snp6_anno,genotypedata,chr)
+# }
+#salloc -t 1-1 -n 50 mpirun -n 1 R --interactive
 
-outfolder
-#[1] "/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3/plink"
-for (chr in 23:23)
-{
-  cat(chr,'..')
-  generateped_map(snp6_anno,genotypedata=allnormalgenotypedata,chr)
-}
+# outfolder
+# #[1] "/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4/plink"
+# for (chr in 1:23)
+# {
+#   cat(chr,'..')
+#   generateped_map(snp6_anno,genotypedata=allnormalgenotypedata,chr)
+# }
+
+library(Rmpi)
+njobs=mpi.universe.size() - 1
+print(njobs)
+mpi.spawn.Rslaves(nslaves=njobs,needlog = F)
+mpi.bcast.Robj2slave(snp6_anno)
+mpi.bcast.Robj2slave(allnormalgenotypedata)
+mpi.bcast.Robj2slave(outfolder)
+mpi.bcast.Robj2slave(generateped_map)
+res=mpi.parSapply(X=1:23,FUN=generateped_map,genotypedata=allnormalgenotypedata,job.num=njobs)
+
+
+

@@ -671,7 +671,7 @@ do_qtl(basedir="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL",snpfile="/fh/fast/
        covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_COVA_GE.txt",
        output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk_cis",
        output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk_trans",
-       cutoff_cis=5e-2,cutoff_trans=1e-3,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk.RData")
+       cutoff_cis=5e-1,cutoff_trans=5e-2,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk.RData")
 
 #for NORMAL highrisk mQTL
 do_qtl(basedir="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL",snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_highrisk_SNP_ME.txt",
@@ -681,7 +681,7 @@ do_qtl(basedir="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL",snpfile="/fh/fast/
        covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_COVA_ME.txt",
        output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk_cis",
        output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk_trans",
-       cutoff_cis=5e-2,cutoff_trans=1e-3,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk.RData")
+       cutoff_cis=5e-1,cutoff_trans=5e-2,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk.RData")
 
 #For NORMAL eQTL
 basedir="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL"

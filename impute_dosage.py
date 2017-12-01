@@ -9,7 +9,7 @@ import pandas as pd
 
 #infolder=outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation"
 #infolder=outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation1"
-infolder=outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3"
+infolder=outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4"
 
 def todosage(impfile,outfile):
     data=pd.read_csv(impfile,delimiter=" ",header=None)

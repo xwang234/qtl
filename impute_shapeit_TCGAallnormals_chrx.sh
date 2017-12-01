@@ -14,10 +14,10 @@ plink=/fh/fast/stanford_j/Xiaoyu/Tools/plink-1.07-x86_64/plink
 impute=/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/impute2
 shapeit=/fh/fast/stanford_j/Xiaoyu/Tools/shapeit/bin/shapeit
 #imputation1: 2012 MAR, imputation2:2014 OCT
-impfolder=/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3
+impfolder=/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4
 outfolder=${impfolder}/plink
 #ped,map,flip files:
-infolder=/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3/plink
+infolder=/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4/plink
 
 chr=X
 #prefix
@@ -111,33 +111,36 @@ do_impute2X () {
 #2014 OCT
 GENMAP_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/genetic_map_chr${chr}_PAR1_combined_b37.txt"
 HAPS_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}_PAR1.hap.gz"
-LEGEND_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}_PAR1.legend_filter.gz"
+LEGEND_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}_PAR1.legend_filter1.gz" #use EUR and EAS
 
 OUTPUT_HAPS=${outfolder}/TCGAnormals_chr${chr}_PAR1.haps
 OUTPUT_SAMPLE=${outfolder}/TCGAnormals_chr${chr}_PAR1.sample
 OUTPUT_LOG=${outfolder}/TCGAnormals_chr${chr}_PAR1.log
-do_shapeitX ${f}_flip $GENMAP_FILE $OUTPUT_HAPS $OUTPUT_SAMPLE $OUTPUT_LOG
-samplefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3/SNP6_allsamplefile.txt"
+#do_shapeitX ${f}_flip $GENMAP_FILE $OUTPUT_HAPS $OUTPUT_SAMPLE $OUTPUT_LOG
+samplefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4/SNP6_allsamplefile.txt"
 do_impute2X $OUTPUT_HAPS $GENMAP_FILE $HAPS_FILE $LEGEND_FILE "${impfolder}/chunkresult/SNP6_imp_chr${chr}_PAR1_chunk" "${impfolder}/SNP6_imp_chr${chr}_PAR1.txt" "${impfolder}/SNP6_info_chr${chr}_PAR1.txt" $samplefile
 
 GENMAP_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/genetic_map_chr${chr}_PAR2_combined_b37.txt"
 HAPS_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}_PAR2.hap.gz"
-LEGEND_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}_PAR2.legend_filter.gz"
+LEGEND_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}_PAR2.legend_filter1.gz"
 
-OUTPUT_HAPS=${outfolder}/TCGAnormals_chr${chr}_PAR2.haps
+#OUTPUT_HAPS=${outfolder}/TCGAnormals_chr${chr}_PAR2.haps
+OUTPUT_HAPS=${outfolder}/TCGAnormals_chr${chr}_PAR1.haps
 OUTPUT_SAMPLE=${outfolder}/TCGAnormals_chr${chr}_PAR2.sample
 OUTPUT_LOG=${outfolder}/TCGAnormals_chr${chr}_PAR2.log
-do_shapeitX ${f}_flip $GENMAP_FILE $OUTPUT_HAPS $OUTPUT_SAMPLE $OUTPUT_LOG
+#All three phasing results are the same
+#do_shapeitX ${f}_flip $GENMAP_FILE $OUTPUT_HAPS $OUTPUT_SAMPLE $OUTPUT_LOG
 do_impute2X $OUTPUT_HAPS $GENMAP_FILE $HAPS_FILE $LEGEND_FILE "${impfolder}/chunkresult/SNP6_imp_chr${chr}_PAR2_chunk" "${impfolder}/SNP6_imp_chr${chr}_PAR2.txt" "${impfolder}/SNP6_info_chr${chr}_PAR2.txt" $samplefile
 
 GENMAP_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/genetic_map_chr${chr}_nonPAR_combined_b37.txt"
 HAPS_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}_NONPAR.hap.gz"
-LEGEND_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}_NONPAR.legend_filter.gz"
+LEGEND_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}_NONPAR.legend_filter1.gz"
 
-OUTPUT_HAPS=${outfolder}/TCGAnormals_chr${chr}_nonPAR.haps
+#OUTPUT_HAPS=${outfolder}/TCGAnormals_chr${chr}_nonPAR.haps
+OUTPUT_HAPS=${outfolder}/TCGAnormals_chr${chr}_PAR1.haps
 OUTPUT_SAMPLE=${outfolder}/TCGAnormals_chr${chr}_nonPAR.sample
 OUTPUT_LOG=${outfolder}/TCGAnormals_chr${chr}_nonPAR.log
-do_shapeitX ${f}_flip $GENMAP_FILE $OUTPUT_HAPS $OUTPUT_SAMPLE $OUTPUT_LOG
+#do_shapeitX ${f}_flip $GENMAP_FILE $OUTPUT_HAPS $OUTPUT_SAMPLE $OUTPUT_LOG
 do_impute2X $OUTPUT_HAPS $GENMAP_FILE $HAPS_FILE $LEGEND_FILE "${impfolder}/chunkresult/SNP6_imp_chr${chr}_nonPAR_chunk" "${impfolder}/SNP6_imp_chr${chr}_nonPAR.txt" "${impfolder}/SNP6_info_chr${chr}_nonPAR.txt" $samplefile
 
 

@@ -14,8 +14,15 @@ def makelegend(legendfile,outfile):
     data["filter"]=0
     idx=((data["EUR"]>0.001) & (data["EUR"]<0.999)) | ((data["SAS"]>0.001) & (data["SAS"]<0.999)) | ((data["EAS"]>0.001) & (data["EAS"]<0.999))
     data.loc[idx,"filter"]=1
-    data.to_csv(outfile,compression='gzip',sep=" ")
-    
+    data.to_csv(outfile,compression='gzip',sep=" ",index=False)
+ 
+#only consider EUR and EAS, used in iCOGS and ONCOarray
+def makelegend1(legendfile,outfile):
+    data=pd.read_csv(legendfile,compression='gzip',sep=" ")
+    data["filter"]=0
+    idx=((data["EUR"]>0.001) & (data["EUR"]<0.999)) | ((data["EAS"]>0.001) & (data["EAS"]<0.999))
+    data.loc[idx,"filter"]=1
+    data.to_csv(outfile,compression='gzip',sep=" ",index=False)
     
 for i in range(1,23):
     print i
@@ -25,13 +32,33 @@ for i in range(1,23):
 
 #for chrX    
 legendfile=infolder+"/1000GP_Phase3_chrX_PAR1.legend.gz"
-outfile=infolder+"1000GP_Phase3_chrX_PAR1.legend_filter.gz"
+outfile=infolder+"/1000GP_Phase3_chrX_PAR1.legend_filter.gz"
 makelegend(legendfile,outfile)
 
 legendfile=infolder+"/1000GP_Phase3_chrX_PAR2.legend.gz"
-outfile=infolder+"1000GP_Phase3_chrX_PAR2.legend_filter.gz"
+outfile=infolder+"/1000GP_Phase3_chrX_PAR2.legend_filter.gz"
 makelegend(legendfile,outfile)
 
 legendfile=infolder+"/1000GP_Phase3_chrX_NONPAR.legend.gz"
-outfile=infolder+"1000GP_Phase3_chrX_NONPAR.legend_filter.gz"
+outfile=infolder+"/1000GP_Phase3_chrX_NONPAR.legend_filter.gz"
 makelegend(legendfile,outfile)
+
+#makelegend1
+for i in range(1,23):
+    print i
+    legendfile=infolder+"/1000GP_Phase3_chr"+str(i)+".legend.gz"
+    outfile=infolder+"/1000GP_Phase3_chr"+str(i)+".legend_filter1.gz"
+    makelegend1(legendfile,outfile)
+
+#for chrX    
+legendfile=infolder+"/1000GP_Phase3_chrX_PAR1.legend.gz"
+outfile=infolder+"/1000GP_Phase3_chrX_PAR1.legend_filter1.gz"
+makelegend1(legendfile,outfile)
+
+legendfile=infolder+"/1000GP_Phase3_chrX_PAR2.legend.gz"
+outfile=infolder+"/1000GP_Phase3_chrX_PAR2.legend_filter1.gz"
+makelegend1(legendfile,outfile)
+
+legendfile=infolder+"/1000GP_Phase3_chrX_NONPAR.legend.gz"
+outfile=infolder+"/1000GP_Phase3_chrX_NONPAR.legend_filter1.gz"
+makelegend1(legendfile,outfile)

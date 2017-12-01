@@ -13,11 +13,11 @@ imp=2014OCT
 plink=/fh/fast/stanford_j/Xiaoyu/Tools/plink-1.07-x86_64/plink
 impute=/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/impute2
 shapeit=/fh/fast/stanford_j/Xiaoyu/Tools/shapeit/bin/shapeit
-#imputation1: 2012 MAR, imputation2:2014 OCT
-impfolder=/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3
+#imputation1: 2012 MAR, imputation2:2014 OCT, imputation3:496 samples, imputation4:67+385 samples
+impfolder=/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4
 outfolder=${impfolder}/plink
 #ped,map,flip files:
-infolder=/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3/plink
+infolder=/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4/plink
 
 do_shapeit () {
  # parameters
@@ -108,7 +108,7 @@ $plink --noweb --file ${f}_flip --make-bed --out ${f}_flip
 
 GENMAP_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/genetic_map_chr${chr}_combined_b37.txt"
 HAPS_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}.hap.gz"
-LEGEND_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}.legend_filter.gz"
+LEGEND_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}.legend_filter1.gz" #use EUR and EAS
 
 OUTPUT_HAPS=${outfolder}/TCGAnormals_chr${chr}.haps
 OUTPUT_SAMPLE=${outfolder}/TCGAnormals_chr${chr}.sample

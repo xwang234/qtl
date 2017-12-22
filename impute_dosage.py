@@ -6,10 +6,12 @@
 #compute dosage for the imputed data
 import numpy as np
 import pandas as pd
+from time import gmtime, strftime
 
 #infolder=outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation"
 #infolder=outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation1"
-infolder=outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4"
+#infolder=outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4"
+infolder=outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation_tumor"
 
 def todosage(impfile,outfile):
     data=pd.read_csv(impfile,delimiter=" ",header=None)
@@ -22,7 +24,23 @@ def todosage(impfile,outfile):
         tmp[idxna]=None
         outdata=pd.concat([outdata,tmp],axis=1)
     np.savetxt(outfile,outdata.values,fmt="%.5g",delimiter="\t")
+    print strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime())
 
+def todosage1(impfile,outfile):
+    print strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime())
+    data=pd.read_csv(impfile,delimiter=" ",header=None)
+    nsample=(len(data.columns)-5)/3
+    outdata=pd.DataFrame(index=data.index,columns=range(1,nsample+1))
+    for j in range(1,nsample+1):
+        nc=(j-1)*3+1+4
+        tmp=data.iloc[:,nc+1]+data.iloc[:,nc+2]*2
+        idxna=(data.iloc[:,nc]==0)&(data.iloc[:,nc+1]==0)&(data.iloc[:,nc+2]==0)
+        tmp[idxna]=None
+        outdata.iloc[:,j-1]=tmp
+    np.savetxt(outfile,outdata.values,fmt="%.5g",delimiter="\t")
+    print strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime())
+
+print strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime())
 for i in range(1,23):
     print str(i)+".."
     impfile=infolder+"/"+"SNP6_imp_chr"+str(i)+".txt"

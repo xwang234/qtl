@@ -1,7 +1,10 @@
 #!/usr/bin/env Rscript
 #generate pad file and map file for plink
 #load("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/TCGAnormals.RData")
+#for normals
 load("/fh/fast/stanford_j/Xiaoyu/QTL/data/TCGAnormals.RData")
+#for tumors
+load("/fh/fast/stanford_j/Xiaoyu/QTL/data/TCGAtumors.RData")
 snp6_anno <- read.table(file="/fh/fast/dai_j/CancerGenomics/Tools/database/other/GenomeWideSNP_6.na35.annot.csv",skip=18,header=T,sep=",",stringsAsFactors=F)
 #the SNP probes:
 sum(rownames(genotypedata) %in% snp6_anno$Probe.Set.ID)==nrow(genotypedata)
@@ -16,6 +19,8 @@ snp6_anno$Physical.Position=as.integer(snp6_anno$Physical.Position)
 #outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3/plink"
 #67 +385 other blood
 outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4/plink"
+#for tumor data
+outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation_tumor/plink"
 #create ped files for each chr
 #http://zzz.bwh.harvard.edu/plink/data.shtml#ped
 # Family ID
@@ -29,7 +34,7 @@ outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4/plink"
 # rs# or snp identifier
 # Genetic distance (morgans)
 # Base-pair position (bp units)
-generateped_map=function(chr,genotypedata)
+generateped_map=function(chr,genotypedata,tp="tumor")
 {
   if (chr==23) chr="X"
   idx=which(snp6_anno$Chromosome==chr & !is.na(snp6_anno$Physical.Position))
@@ -51,7 +56,13 @@ generateped_map=function(chr,genotypedata)
   {
     warning(paste0("The order of SNPs have problem...","in chr",chr))
   }
-  pedfile=paste0(outfolder,"/TCGAnormals_chr",chr,".ped")
+  if (tp=="tumor")
+  {
+    pedfile=paste0(outfolder,"/TCGAtumors_chr",chr,".ped")
+  }else
+  {
+    pedfile=paste0(outfolder,"/TCGAnormals_chr",chr,".ped")
+  }
   ped=data.frame(matrix(NA,nrow=ncol(gtchrtable),ncol=6+nrow(gtchrtable)*2),stringsAsFactors = F)
   ped[,1]=colnames(gtchrtable)
   ped[,2]=1:nrow(ped) #individula id should be unique to use shapeit
@@ -92,7 +103,13 @@ generateped_map=function(chr,genotypedata)
   }
   write.table(ped,file=pedfile,col.names = F,row.names = F,sep="\t",quote=F)
   
-  mapfile=paste0(outfolder,"/TCGAnormals_chr",chr,".map")
+  if (tp=="tumor")
+  {
+    mapfile=paste0(outfolder,"/TCGAtumors_chr",chr,".map")
+  }else
+  {
+    mapfile=paste0(outfolder,"/TCGAnormals_chr",chr,".map")
+  }
   map=data.frame(matrix(NA,nrow=nrow(gtchrtable),ncol=4),stringsAsFactors = F)
   map[,1]=chr
   map[,2]=annochrtable$Probe.Set.ID
@@ -102,7 +119,13 @@ generateped_map=function(chr,genotypedata)
   map[,4]=annochrtable$Physical.Position
   write.table(map,file=mapfile,col.names = F,row.names = F,sep="\t",quote=F)
   
-  fliplistfile=paste0(outfolder,"/TCGAnormals_chr",chr,".fliplist")
+  if (tp=="tumor")
+  {
+    fliplistfile=paste0(outfolder,"/TCGAtumors_chr",chr,".fliplist")
+  }else
+  {
+    fliplistfile=paste0(outfolder,"/TCGAnormals_chr",chr,".fliplist")
+  }
   idxflip=which(annochrtable$Strand=="-")
   flip=data.frame(snpid=map[idxflip,2],stringsAsFactors = F)
   write.table(flip,file=fliplistfile,col.names = F,row.names = F,sep="\t",quote=F)
@@ -113,7 +136,7 @@ generateped_map=function(chr,genotypedata)
 #   cat(chr,'..')
 #   generateped_map(snp6_anno,genotypedata,chr)
 # }
-#salloc -t 1-1 -n 50 mpirun -n 1 R --interactive
+#salloc -t 1-1 -n 101 mpirun -n 1 R --interactive
 
 # outfolder
 # #[1] "/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4/plink"
@@ -127,11 +150,25 @@ library(Rmpi)
 njobs=mpi.universe.size() - 1
 print(njobs)
 mpi.spawn.Rslaves(nslaves=njobs,needlog = F)
+#for normals:
 mpi.bcast.Robj2slave(snp6_anno)
 mpi.bcast.Robj2slave(allnormalgenotypedata)
 mpi.bcast.Robj2slave(outfolder)
 mpi.bcast.Robj2slave(generateped_map)
 res=mpi.parSapply(X=1:23,FUN=generateped_map,genotypedata=allnormalgenotypedata,job.num=njobs)
+#for tumors:
+mpi.bcast.Robj2slave(snp6_anno)
+mpi.bcast.Robj2slave(genotypedata)
+mpi.bcast.Robj2slave(outfolder)
+mpi.bcast.Robj2slave(generateped_map)
+res=mpi.parSapply(X=1:23,FUN=generateped_map,genotypedata=genotypedata,job.num=njobs)
 
-
+samplefile="../result/imputation_tumor/SNP6_allsamplefile.txt"
+tmp=data.frame(matrix(NA,nrow=ncol(genotypedata)+1,ncol=4),stringsAsFactors = F)
+colnames(tmp)=c("ID_1","ID_2","missing","sex")
+tmp[,1]=tmp[,2]=0:(ncol(genotypedata))
+tmp[,3]=0
+tmp[,4]=1
+tmp[1,]=c(0,0,0,"D")
+write.table(tmp,file=samplefile,row.names = F,sep=" ",quote=F)
 

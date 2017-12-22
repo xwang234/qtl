@@ -282,7 +282,47 @@ idx=match(tcga_geneexp_samples,colnames(tcga_geneexp))
 tcga_geneexp=tcga_geneexp[,idx]
 save(hutch_samples,tcga_methy,hutch_methy,allnormal_methy,allnormal_geneexp_pos,hutch_ge_anno,tcga_ge_anno,hutch_geneexp,tcga_geneexp,
      file="/fh/fast/stanford_j/Xiaoyu/QTL/data/allnormaldata.RData")
+tcga_ge_anno$gene=rownames(geneexpdata)
+TCGA_tumors_GE_POS=fread("../result/qtl_input/TCGA_tumors_GE_POS.txt",header=T,sep="\t")
+for (i in 1:nrow(tcga_ge_anno))
+{
+  if (tcga_ge_anno$gene[i] %in% TCGA_tumors_GE_POS$geneid)
+  {
+    idx=which(TCGA_tumors_GE_POS$geneid==tcga_ge_anno$gene[i])
+    tcga_ge_anno$start[i]=TCGA_tumors_GE_POS$s1[idx]
+    tcga_ge_anno$end[i]=TCGA_tumors_GE_POS$s2[idx]
+  }
+}
+#make an anno file for TCGA 
+tcga_ge_anno$Probe_Id=tcga_ge_anno$gene
+tcga_ge_anno$Symbol=NA
+for (i in 1:nrow(tcga_ge_anno))
+{
+  tmp=unlist(strsplit(tcga_ge_anno$gene[i],"|",fixed = T))
+  if (!"?" %in% tmp[1])
+  {
+      tcga_ge_anno$Symbol[i]=tmp[1]
+  }else
+  {
+    if (!is.na(tcga_ge_anno$match[i]))
+    {
+      tmp1=as.integer(unlist(strsplit(tcga_ge_anno$hutchidx[i],"|",fixed = T)))
+      tcga_ge_anno$Symbol[i]=hutch_ge_anno$Symbol[tmp1[1]]
+    }
+  }
+}
+#add matched TCGA probeid to hutch ge anno
+hutch_ge_anno$TCGA_Probe_Id=NA
+for (i in 1:nrow(tcga_ge_anno))
+{
+  if (!is.na(tcga_ge_anno$match[i]))
+  {
+    tmp1=as.integer(unlist(strsplit(tcga_ge_anno$hutchidx[i],"|",fixed = T)))
+    hutch_ge_anno$TCGA_Probe_Id[tmp1]=tcga_ge_anno$gene[i]
+  }
+}
 
+save(tcga_ge_anno,hutch_ge_anno,file="/fh/fast/stanford_j/Xiaoyu/QTL/data/Geneexp_map_TCGA_HUTCH.RData")
 allnormal_geneexp=cbind.data.frame(tcga_geneexp,hutch_geneexp)
 
 #normalization

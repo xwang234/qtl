@@ -14,10 +14,10 @@ plink=/fh/fast/stanford_j/Xiaoyu/Tools/plink-1.07-x86_64/plink
 impute=/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/impute2
 shapeit=/fh/fast/stanford_j/Xiaoyu/Tools/shapeit/bin/shapeit
 #imputation1: 2012 MAR, imputation2:2014 OCT, imputation3:496 samples, imputation4:67+385 samples
-impfolder=/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4
+impfolder=/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation_tumor
 outfolder=${impfolder}/plink
 #ped,map,flip files:
-infolder=/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4/plink
+infolder=/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation_tumor/plink
 
 do_shapeit () {
  # parameters
@@ -99,9 +99,9 @@ do_impute2 () {
 chr=${1?"chrnumber"}
 echo $chr
 #prefix
-inf=$infolder/TCGAnormals_chr$chr
-f=$outfolder/TCGAnormals_chr$chr
-#generate plink file, filter Hardy-Weinberg equilibrium(HWE)
+inf=$infolder/TCGAtumors_chr$chr
+f=$outfolder/TCGAtumors_chr$chr
+#generate plink file
 #$plink --noweb --file $inf --flip $inf.fliplist --recode --out ${f}_flip
 $plink --noweb --file $inf --flip $inf.fliplist --recode --hardy --out ${f}_flip
 $plink --noweb --file ${f}_flip --make-bed --out ${f}_flip
@@ -111,9 +111,9 @@ GENMAP_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP
 HAPS_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}.hap.gz"
 LEGEND_FILE="/fh/fast/stanford_j/Xiaoyu/Tools/impute_v2.3.2_x86_64_static/1000GP_Phase3/1000GP_Phase3_chr${chr}.legend_filter1.gz" #use EUR and EAS
 
-OUTPUT_HAPS=${outfolder}/TCGAnormals_chr${chr}.haps
-OUTPUT_SAMPLE=${outfolder}/TCGAnormals_chr${chr}.sample
-OUTPUT_LOG=${outfolder}/TCGAnormals_chr${chr}.log
+OUTPUT_HAPS=${outfolder}/TCGAtumors_chr${chr}.haps
+OUTPUT_SAMPLE=${outfolder}/TCGAtumors_chr${chr}.sample
+OUTPUT_LOG=${outfolder}/TCGAtumors_chr${chr}.log
 do_shapeit ${f}_flip $GENMAP_FILE $OUTPUT_HAPS $OUTPUT_SAMPLE $OUTPUT_LOG
 do_impute2 $OUTPUT_HAPS $GENMAP_FILE $HAPS_FILE $LEGEND_FILE "${impfolder}/chunkresult/SNP6_imp_chr${chr}_chunk" "${impfolder}/SNP6_imp_chr${chr}.txt" "${impfolder}/SNP6_info_chr${chr}.txt" 
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 library(data.table,lib.loc="~/R/x86_64-pc-linux-gnu-library/3.3")
 library(sas7bdat)
+source("functions.R")
 plotgenome=function(data,ylab="",main="",qvalues=NULL,qcutoff=0.05)
 {
   chr=data$chr
@@ -98,190 +99,20 @@ plotgenome=function(data,ylab="",main="",qvalues=NULL,qcutoff=0.05)
   return(res)
 }
 
-chrs=c(1:22,"X","Y")
-dictfile="/fh/fast/dai_j/CancerGenomics/Tools/database/reference/compact/ucsc.hg19.compact.dict"
-chrlen=read.table(file=dictfile,sep="\t",skip=1,stringsAsFactors = F)
-chrlen=chrlen$V3
-chrlen=gsub("LN:","",chrlen,fixed=T)
-chrlen=as.numeric(chrlen)
-names(chrlen)=chrs
-chrstart=rep(0,length(chrlen))
-for (i in 2:length(chrlen))
-{
-  tmp=0
-  for (j in 1:(i-1))
-  {
-    tmp=tmp+chrlen[j]
-  }
-  chrstart[i]=tmp
-}
-names(chrstart)=names(chrlen)
-chrend=rep(0,length(chrlen))
-for (i in 1:length(chrlen))
-{
-  tmp=0
-  for (j in 1:i)
-  {
-    tmp=tmp+chrlen[j]
-  }
-  chrend[i]=tmp
-}
-names(chrend)=names(chrlen)
-totalpos=function(chr=NULL,pos=NULL)
-{
-  chr=gsub(23,"X",chr)
-  chr=gsub(24,"Y",chr)
-  chrs=c(1:22,"X","Y")
-  
-  idx=which(chr %in% chrs)
-  chr=chr[idx]
-  pos=pos[idx]
-  #chr=factor(chr,chrs)
-  
-  allchrs=unique(chr)
-  posall=rep(NA,length(chr))
-  for (mychr in allchrs)
-  {
-    idx=which(chr %in% mychr)
-    idx1=which(names(chrstart)==mychr)
-    posall[idx]=pos[idx]+chrstart[idx1]
-  }
-  return(posall)
-}
+#load("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/ge_annohg19.RData")
 
-#extract qtl result
-formlevelmat=function(qtlresfile="eqtl_cis",colpvalue=5,snpposfile="eqtl_POS_SNP_GE.txt",geposfile="eqtl_POS_GE.txt",bonfadj=NULL)
-{
-  print(paste0("processed qtl file: ",qtlresfile))
-  snpspos=fread(snpposfile,sep="\t")
-  print(paste0("number of SNPs: ",nrow(snpspos)))
-  snpspos$chr=gsub(23,"X",snpspos$chr)
-  snpspos$chr=gsub(24,"Y",snpspos$chr)
-  
-  genepos=fread(geposfile,sep="\t")
-  print(paste0("number of phenotypeprobes: ",nrow(genepos)))
-  genepos$chr=gsub(23,"X", genepos$chr)
-  genepos$chr=gsub(24,"Y", genepos$chr)
-  
-  eqtl_cis=fread(qtlresfile,header=T,sep="\t",fill=T,check.names = F)
-  eqtl_cis=as.data.frame(eqtl_cis)
-  if (! is.null(bonfadj))
-  {
-    print(paste0("number of pairs: ",nrow(eqtl_cis)))
-    print(paste0("number of unique SNPs: ",length(unique(eqtl_cis$SNP))))
-    print(paste0("number of unique phenotypes: ",length(unique(eqtl_cis$gene))))
-    print(paste0("Bonferroni cutoff: ",0.05/bonfadj))
-    idx=which(eqtl_cis[,colpvalue]<=0.05/bonfadj)
-    print(paste0("number of pairs (after adjustment)",length(idx)))
-    print(paste0("number of unique SNPs (after adjustment)",length(unique(eqtl_cis$SNP[idx])),", ",length(unique(eqtl_cis$SNP[idx]))/nrow(snpspos)))
-    print(paste0("number of unique phenotypes (after adjustment)",length(unique(eqtl_cis$gene[idx])),", ",length(unique(eqtl_cis$gene[idx]))/nrow(genepos)))
-  }else
-  {
-    print(paste0("number of pairs: ",nrow(eqtl_cis)))
-    print(paste0("number of unique SNPs: ",length(unique(eqtl_cis$SNP))))
-    print(paste0("number of unique phenotypes: ",length(unique(eqtl_cis$gene))))
-    fdrcutoff=1
-    print(paste0("FDR cutoff: ",fdrcutoff))
-    tmp=which(eqtl_cis$FDR<=fdrcutoff)
-    print(paste0("pvalue cutoff: ",eqtl_cis[max(tmp),colpvalue]))
-    idx=which(eqtl_cis$FDR<=fdrcutoff)
-    print(paste0("number of pairs (after adjustment)",length(idx)))
-    print(paste0("number of unique SNPs (after adjustment)",length(unique(eqtl_cis$SNP[idx])),", ",length(unique(eqtl_cis$SNP[idx]))/nrow(snpspos)))
-    print(paste0("number of unique phenotypes (after adjustment)",length(unique(eqtl_cis$gene[idx])),", ",length(unique(eqtl_cis$gene[idx]))/nrow(genepos)))
-  }
-  
-  eqtl_cis=eqtl_cis[idx,]
-  
-  idx=match(eqtl_cis$SNP,snpspos$snp)
-  eqtl_cis$SNP_chr=snpspos$chr[idx]
-  eqtl_cis$SNP_pos=snpspos$pos[idx]
-  #which snps were included
-  eqtl_cis$SNP_idx=idx
-  
-  idx=match(eqtl_cis$gene,genepos$geneid)
-  eqtl_cis$gene_chr=genepos$chr[idx]
-  eqtl_cis$gene_pos=genepos$s1[idx]
-  #get the total position
-  eqtl_cis$SNP_posall=totalpos(chr=eqtl_cis$SNP_chr,pos=eqtl_cis$SNP_pos)
-  eqtl_cis$gene_posall=totalpos(chr=eqtl_cis$gene_chr,pos=eqtl_cis$gene_pos)
-  levelmat=data.frame(value=-log10(eqtl_cis[,colpvalue]),pos1=eqtl_cis$SNP_posall,pos2=eqtl_cis$gene_posall,
-                      chr=eqtl_cis$SNP_chr,gene_chr=eqtl_cis$gene_chr,snp_idx=eqtl_cis$SNP_idx,
-                      opos1=eqtl_cis$SNP_pos,opos2=eqtl_cis$gene_pos,gene=eqtl_cis$gene,fdr=eqtl_cis$FDR)
-  levelmat$chr=gsub(23,"X",levelmat$chr)
-  levelmat$chr=gsub(24,"Y",levelmat$chr)
-  # cc = colorRampPalette( c("green","white","red"))
-  # numcol=21
-  # colors=cc(numcol)
-  # zrng <- range(levelmat$value)       # what's the range of z
-  # tol <- 1e-2            # what tolerance is necessary?
-  # zquant=quantile(levelmat$value,c(0,0.5,0.9,1))
-  # colorBreaks1 <- seq(zquant[1]-0.01,zquant[2],length.out = ceiling(numcol*0.5))
-  # colorBreaks2 <- seq(zquant[2]+0.1,zquant[4]+0.01,length.out = numcol-ceiling(numcol*0.5))
-  # colorBreaks <- c(colorBreaks1,colorBreaks2)
-  # df_breaks=seq(zrng[1],zrng[2],length.out = numcol)
-  # # levelplot(cor~ge*me,data=levelmat,xlab="Gene expression",ylab="Methylation")
-  # levelmat$color=rep(NA,nrow(levelmat))
-  # for (i in 1:(numcol-1))
-  # {
-  #   idx=which(levelmat$value>=colorBreaks[i] & levelmat$value<colorBreaks[i+1])
-  #   levelmat$color[idx]=i
-  # }
-  # # idx=which(levelmat$color>numcol/2)
-  # # levelmat=levelmat[idx,]
-  # levelmat$colors=colors[levelmat$color]
-  levelmat=levelmat[order(levelmat$value),]
-  return(levelmat)
-}
-load("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/ge_annohg19.RData")
-addgenename_GE=function(datatable=tmp5,anno=ge_annohg19,colname="genename")
-{
-  idx=match(datatable$gene,anno$Probe_Id)
-  datatable=cbind(datatable,anno$Symbol[idx])
-  colnames(datatable)[ncol(datatable)]=colname
-  return(datatable)
-}
-load("/fh/fast/dai_j/CancerGenomics/prostate_methylation/annotation.RData")
-addgenename_ME=function(datatable=tmp7,anno1=anno,colname="genename")
-{
-  idx=match(datatable$gene,anno1$IlmnID)
-  datatable=cbind(datatable,anno1$UCSC_RefGene_Name[idx])
-  colnames(datatable)[ncol(datatable)]=colname
-  return(datatable)
-}
-library(GenomicRanges)
-checkoverlapsnps=function(qtlres1=HUTCH_cis_eqtl,qtlres2=NORMAL_cis_eqtl,
-                          snpposfile1="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",
-                          snpposfile2="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_POS.txt")
-{
-  snppos1=fread(snpposfile1,sep="\t")
-  snppos2=fread(snpposfile2,sep="\t")
-  gr_res1=GRanges(seqnames = qtlres1$chr,ranges = IRanges(start=snppos1$pos[qtlres1$snp_idx],width=1))
-  gr_res1=unique(gr_res1)
-  gr_res2=GRanges(seqnames = qtlres2$chr,ranges = IRanges(start=snppos2$pos[qtlres2$snp_idx],width=1))
-  gr_res2=unique(gr_res2)
-  print(paste0("number of unique SNP1:",length(gr_res1)))
-  print(paste0("number of unique SNP2:",length(gr_res2)))
-  print(paste0("number of overlapped SNP:",length(intersect(gr_res1,gr_res2))))
-}
-
-pvalue_overlapsnp=function(totalnum=147,num1=33,num2=127,num12=32)
-{
-  m=matrix(c(num12,num1-num12,num2-num12,totalnum-num1-num2+num12),nrow=2,dimnames = list(c("in1","notin1"),c("in2","notin2")))
-  print(m)
-  print(fisher.test(m)$p.value)
-}
 
 #CIS-------------------------------------------------------------------------------
 #for highrisk HUTCH eqtl
 #for number of tests
 rm(qtl)
-load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk.RData")
-highrisk_HUTCH_cis_eqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_cis",
+load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_peer_highrisk.RData")
+highrisk_HUTCH_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_cis",
                                      snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                      geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_POS.txt",bonfadj=qtl$cis$ntests)
 highrisk_HUTCH_cis_eqtl=addgenename_GE(highrisk_HUTCH_cis_eqtl)
 length(unique(highrisk_HUTCH_cis_eqtl$genename))
-highrisk_all_HUTCH_cis_eqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_cis",
+highrisk_all_HUTCH_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_cis",
                                      snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                      geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_POS.txt")
 highrisk_all_HUTCH_cis_eqtl=addgenename_GE(highrisk_all_HUTCH_cis_eqtl)
@@ -290,12 +121,12 @@ length(unique(highrisk_all_HUTCH_cis_eqtl$genename))
 #for highrisk NORMAL eqtl
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk.RData")
-highrisk_NORMAL_cis_eqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk_cis",
+highrisk_NORMAL_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk_cis",
                                      snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                      geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_POS.txt",bonfadj=qtl$cis$ntests)
 highrisk_NORMAL_cis_eqtl=addgenename_GE(highrisk_NORMAL_cis_eqtl)
 length(unique(highrisk_NORMAL_cis_eqtl$genename))
-highrisk_all_NORMAL_cis_eqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk_cis",
+highrisk_all_NORMAL_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk_cis",
                                          snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                          geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_POS.txt")
 highrisk_all_NORMAL_cis_eqtl=addgenename_GE(highrisk_all_NORMAL_cis_eqtl)
@@ -309,7 +140,7 @@ pvalue_overlapsnp(147,79,43,32)
 
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl.RData")
-HUTCH_cis_eqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_cis",
+HUTCH_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_cis",
                                      snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",
                                      geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_POS.txt",bonfadj=qtl$cis$ntests)
 HUTCH_cis_eqtl=addgenename_GE(HUTCH_cis_eqtl)
@@ -317,7 +148,7 @@ length(unique(HUTCH_cis_eqtl$genename))
 #for NORMAL eqtl
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl.RData")
-NORMAL_cis_eqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_cis",
+NORMAL_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_cis",
                                       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_POS.txt",
                                       geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_POS.txt",bonfadj=qtl$cis$ntests)
 NORMAL_cis_eqtl=addgenename_GE(NORMAL_cis_eqtl)
@@ -337,12 +168,12 @@ dev.off()
 #for number of tests
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk.RData")
-highrisk_HUTCH_cis_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_cis",
+highrisk_HUTCH_cis_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_cis",
                                      snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                      geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt",bonfadj=qtl$cis$ntests)
 highrisk_HUTCH_cis_mqtl=addgenename_ME(highrisk_HUTCH_cis_mqtl)
 length(unique(highrisk_HUTCH_cis_mqtl$genename))
-highrisk_all_HUTCH_cis_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_cis",
+highrisk_all_HUTCH_cis_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_cis",
                                          snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                          geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt")
 highrisk_all_HUTCH_cis_mqtl=addgenename_ME(highrisk_all_HUTCH_cis_mqtl)
@@ -351,13 +182,13 @@ length(unique(highrisk_all_HUTCH_cis_mqtl$genename))
 #for highrisk NORMAL mqtl
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk.RData")
-highrisk_NORMAL_cis_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk_cis",
+highrisk_NORMAL_cis_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk_cis",
                                       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                       geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME_POS.txt",bonfadj=qtl$cis$ntests)
 highrisk_NORMAL_cis_mqtl=addgenename_ME(highrisk_NORMAL_cis_mqtl)
 length(unique(highrisk_NORMAL_cis_mqtl$genename))
 sum(length(unique(intersect(highrisk_HUTCH_cis_mqtl$snp_idx,highrisk_NORMAL_cis_mqtl$snp_idx))))
-highrisk_all_NORMAL_cis_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk_cis",
+highrisk_all_NORMAL_cis_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk_cis",
                                           snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                           geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME_POS.txt")
 highrisk_all_NORMAL_cis_mqtl=addgenename_ME(highrisk_all_NORMAL_cis_mqtl)
@@ -375,7 +206,7 @@ length(intersect(unique(highrisk_all_HUTCH_cis_mqtl$snp_idx[highrisk_all_HUTCH_c
 rm(qtl)
 #load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl.RData")
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH_MPI/mqtl.RData") #cis/trans/num_cis/num_trans
-HUTCH_cis_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH_MPI/mqtl_cis",
+HUTCH_cis_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH_MPI/mqtl_cis",
                             snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",
                             geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt",bonfadj=sum(num_cis))
 HUTCH_cis_mqtl=addgenename_ME(HUTCH_cis_mqtl)
@@ -383,14 +214,14 @@ length(unique(HUTCH_cis_mqtl$genename))
 
 # rm(qtl)
 # load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl.RData")
-# HUTCH_cis_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_cis",
+# HUTCH_cis_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_cis",
 #                              snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",
 #                              geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt",bonfadj=qtl$cis$ntests)
 
 #for NORMAL mqtl
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl.RData")
-NORMAL_cis_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_cis",
+NORMAL_cis_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_cis",
                              snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_POS.txt",
                              geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME_POS.txt",bonfadj=qtl$cis$ntests)
 NORMAL_cis_mqtl=addgenename_ME(NORMAL_cis_mqtl)
@@ -414,12 +245,12 @@ dev.off()
 #for number of tests
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk.RData")
-highrisk_HUTCH_trans_eqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_trans",
+highrisk_HUTCH_trans_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_trans",
                                      snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                      geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_POS.txt",bonfadj=qtl$trans$ntests)
 highrisk_HUTCH_trans_eqtl=addgenename_GE(highrisk_HUTCH_trans_eqtl)
 length(unique(highrisk_HUTCH_trans_eqtl$genename))
-highrisk_all_HUTCH_trans_eqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_trans",
+highrisk_all_HUTCH_trans_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_trans",
                                          snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                          geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_POS.txt")
 highrisk_all_HUTCH_trans_eqtl=addgenename_GE(highrisk_all_HUTCH_trans_eqtl)
@@ -428,7 +259,7 @@ length(unique(highrisk_all_HUTCH_trans_eqtl$genename))
 #for highrisk NORMAL eqtl
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk.RData")
-highrisk_NORMAL_trans_eqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk_trans",
+highrisk_NORMAL_trans_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk_trans",
                                       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                       geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_POS.txt",bonfadj=qtl$trans$ntests)
 highrisk_NORMAL_trans_eqtl=addgenename_GE(highrisk_NORMAL_trans_eqtl)
@@ -436,7 +267,7 @@ length(unique(highrisk_NORMAL_trans_eqtl$genename))
 checkoverlapsnps(qtlres1 = highrisk_HUTCH_trans_eqtl,qtlres2 = highrisk_NORMAL_trans_eqtl,
                  snpposfile1 = "/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                  snpposfile2 = "/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt")
-highrisk_all_NORMAL_trans_eqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk_trans",
+highrisk_all_NORMAL_trans_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_highrisk_trans",
                                           snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                           geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_POS.txt")
 highrisk_all_NORMAL_trans_eqtl=addgenename_GE(highrisk_all_NORMAL_trans_eqtl)
@@ -450,7 +281,7 @@ pvalue_overlapsnp(147,35,28,11)
 
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl.RData")
-HUTCH_trans_eqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_trans",
+HUTCH_trans_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_trans",
                             snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",
                             geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_POS.txt",bonfadj=qtl$trans$ntests)
 HUTCH_trans_eqtl=addgenename_GE(HUTCH_trans_eqtl)
@@ -458,7 +289,7 @@ length(unique(HUTCH_trans_eqtl$genename))
 #for NORMAL eqtl
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl.RData")
-NORMAL_trans_eqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_trans",
+NORMAL_trans_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/eqtl_trans",
                              snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_POS.txt",
                              geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_POS.txt",bonfadj=qtl$trans$ntests)
 NORMAL_trans_eqtl=addgenename_GE(NORMAL_trans_eqtl)
@@ -480,12 +311,12 @@ dev.off()
 #for number of tests
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk.RData")
-highrisk_HUTCH_trans_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_trans",
+highrisk_HUTCH_trans_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_trans",
                                      snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                      geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt",bonfadj=qtl$trans$ntests)
 highrisk_HUTCH_trans_mqtl=addgenename_ME(highrisk_HUTCH_trans_mqtl)
 length(unique(highrisk_HUTCH_trans_mqtl$genename))
-highrisk_all_HUTCH_trans_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_trans",
+highrisk_all_HUTCH_trans_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_trans",
                                          snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                          geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt")
 highrisk_all_HUTCH_trans_mqtl=addgenename_ME(highrisk_all_HUTCH_trans_mqtl)
@@ -494,13 +325,13 @@ length(unique(highrisk_all_HUTCH_trans_mqtl$genename))
 #for highrisk NORMAL mqtl
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk.RData")
-highrisk_NORMAL_trans_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk_trans",
+highrisk_NORMAL_trans_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk_trans",
                                       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                       geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME_POS.txt",bonfadj=qtl$trans$ntests)
 highrisk_NORMAL_trans_mqtl=addgenename_ME(highrisk_NORMAL_trans_mqtl)
 length(unique(highrisk_NORMAL_trans_mqtl$genename))
 sum(length(unique(intersect(highrisk_HUTCH_trans_mqtl$snp_idx,highrisk_NORMAL_trans_mqtl$snp_idx))))
-highrisk_all_NORMAL_trans_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk_trans",
+highrisk_all_NORMAL_trans_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk_trans",
                                           snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
                                           geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME_POS.txt")
 highrisk_all_NORMAL_trans_mqtl=addgenename_ME(highrisk_all_NORMAL_trans_mqtl)
@@ -519,7 +350,7 @@ length(intersect(unique(highrisk_all_HUTCH_trans_mqtl$snp_idx[highrisk_all_HUTCH
 rm(qtl)
 #load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl.RData")
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH_MPI/mqtl.RData") #cis/trans/num_cis/num_trans
-HUTCH_trans_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH_MPI/mqtl_trans",
+HUTCH_trans_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH_MPI/mqtl_trans",
                             snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",
                             geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt",bonfadj=sum(num_trans))
 HUTCH_trans_mqtl=addgenename_ME(HUTCH_trans_mqtl)
@@ -527,7 +358,7 @@ length(unique(HUTCH_trans_mqtl$genename))
 #for NORMAL mqtl
 rm(qtl)
 load("/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl.RData")
-NORMAL_trans_mqtl=formlevelmat(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_trans",
+NORMAL_trans_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_trans",
                              snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_POS.txt",
                              geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME_POS.txt",bonfadj=qtl$trans$ntests)
 NORMAL_trans_mqtl=addgenename_ME(NORMAL_trans_mqtl)
@@ -680,17 +511,7 @@ extractpairs=function(dat=highrisk_all_HUTCH_cis_eqtl,fdrcutoff=NULL)
   }
   res=data.frame(dat[,c("snp_idx","chr","opos2","value","fdr","gene","genename")])
 }
-overlappairs=function(dat1=highrisk_cis_hutch_eqtl,dat2=highrisk_cis_hutch_mqtl)
-{
-  tmp=merge(dat1,dat2,by="snp_idx")
-  print(paste0("number of overlapped SNP:",length(unique(tmp$snp_idx))))
-  print(paste0("number of phenoytype1:",length(unique(tmp$gene.x))))
-  print(paste0("number of phenoytype2:",length(unique(tmp$gene.y))))
-  print(paste0("number of triplets:",nrow(tmp)))
-  idx1=which(as.character(tmp$gene.x)==as.character(tmp$gene.y))
-  print(paste0("number of overapped pairs:",sum(as.character(tmp$gene.x)==as.character(tmp$gene.y),na.rm=0)))
-  return(list(snpidx=unique(tmp$snp_idx),pair=tmp[idx1,c("snp_idx","gene.x")],triplet=tmp))
-}
+
 
 hutch_ge_pos=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_POS.txt",header=T,stringsAsFactors = F)
 tcga_ge_pos=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_POS.txt",header=T,stringsAsFactors = F)
@@ -789,54 +610,9 @@ olap_highrisk_cis_normal_eqtl_cis_normal_mqtl=overlappairs(dat1=highrisk_cis_nor
 olap_highrisk_cis_hutch_eqtl_cis_normal_eqtl=overlappairs(dat1=highrisk_cis_hutch_eqtl,dat2=highrisk_cis_normal_eqtl)
 olap_highrisk_cis_hutch_mqtl_cis_normal_mqtl=overlappairs(dat1=highrisk_cis_hutch_mqtl,dat2=highrisk_cis_normal_mqtl)
 
-validatepairs=function(dat1=highrisk_cis_hutch_eqtl,dat2=highrisk_all_NORMAL_cis_eqtl,phenotype2=tcga_ge_pos)
-{
-  tmp=merge(dat1,dat2,by=c("snp_idx","gene"))
-  idx=which(10^-tmp$value.y<=0.05)
-  print(paste0("number of qtl pairs to validate:",nrow(dat1)))
-  print(paste0("number of qtl pairs can be validated:",sum(dat1$gene %in% phenotype2[,1],na.rm=T)))
-  print(paste0("number of pairs validated:",length(idx)))
-  
-  print(paste0("number of phenotype to validate:",length(unique(dat1$gene))))
-  print(paste0("number of phenotype can be validated:",length(unique(dat1$gene[dat1$gene %in% phenotype2[,1]]))))
-  print(paste0("number of phenotype validated:",length(unique(tmp$gene))))
-  
-  print(paste0("number of snp to validate:",length(unique(dat1$snp_idx))))
-  print(paste0("number of snp validated:",length(unique(tmp$snp_idx[idx]))))
-  return(tmp)
-}
-validtriplet=function(dat1=olap_highrisk_cis_hutch_eqtl_cis_hutch_mqtl$triplet,validateeqtl=highrisk_all_NORMAL_cis_eqtl,
-                      validatemqtl=highrisk_all_NORMAL_cis_mqtl,phenotype1=tcga_ge_pos,phenotype2=tcga_me_pos)
-{
-  validateeqtl$gene=as.character(validateeqtl$gene)
-  validatemqtl$gene=as.character(validatemqtl$gene)
-  dat1$gene.x=as.character(dat1$gene.x)
-  dat1$gene.y=as.character(dat1$gene.y)
-  dat1$validate=0
-  dat1$validate_eqtl=NA
-  dat1$validate_mqtl=NA
-  print(paste0("number of triplets to validate:",nrow(dat1)))
-  print(paste0("number of triplets can be validate:",sum(dat1$gene.x %in% phenotype1[,1] & dat1$gene.y %in% phenotype2[,1],na.rm=T)))
-  for (i in 1:nrow(dat1))
-  {
-    idx1=which(validateeqtl$snp_idx==dat1$snp_idx[i] & validateeqtl$gene==dat1$gene.x[i])
-    idx2=which(validatemqtl$snp_idx==dat1$snp_idx[i] & validatemqtl$gene==dat1$gene.y[i])
-    if (length(idx1)*length(idx2)==1)
-    {
-      if (10^-validateeqtl$value[idx1]<=0.05 & 10^-validatemqtl$value[idx2]<=0.05)
-      {
-        dat1$validate[i]=1
-        dat1$validate_eqtl[i]=validateeqtl$value[idx1]
-        dat1$validate_mqtl[i]=validatemqtl$value[idx2]
-      }
-    }
-  }
-  print(paste0("number of triplets validated:", sum(dat1$validate==1,na.rm = T)))
-  print(paste0("number of snp to validate:", length(unique(dat1$snp_idx))))
-  print(paste0("number of snp validated:", length(unique(dat1$snp_idx[dat1$validate==1]))))
-  return(dat1)
-}
 
+
+tcga_me_pos=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumors_ME_POS.txt",header=T,stringsAsFactors = F) #the order is different from normal
 validate_highrisk_cis_hutch_eqtl=validatepairs()
 validate_highrisk_cis_hutch_mqtl=validatepairs(dat1=highrisk_cis_hutch_mqtl,dat2=highrisk_all_NORMAL_cis_mqtl,phenotype2=tcga_me_pos)
 validate_highrisk_trans_hutch_eqtl=validatepairs(dat1=highrisk_trans_hutch_eqtl,dat2=highrisk_all_NORMAL_trans_eqtl,phenotype2=tcga_ge_pos)
@@ -1095,6 +871,339 @@ sum(snp_eqtl_mqtl$eqtl==0 & snp_eqtl_mqtl$mqtl==0) #29
 
 highrisk_cis_hutch_mqtl_fdr$snp_idx=highrisk_snp_pos$snp[highrisk_cis_hutch_mqtl_fdr$snp_idx]
 highrisk_cis_hutch_eqtl_fdr$snp_idx=highrisk_snp_pos$snp[highrisk_cis_hutch_eqtl_fdr$snp_idx]
+#problematic 450k probes:
 library(gdata)
 polycpg=read.xls("/fh/fast/dai_j/CancerGenomics/Tools/database/other/48640-polymorphic-CpGs-Illumina450k.xlsx")
 snpcpg=read.xls("/fh/fast/dai_j/CancerGenomics/Tools/database/other/48640-polymorphic-CpGs-Illumina450k.xlsx",sheet=2)
+
+#DEC20---
+#HUTCH eqtl----------
+# #if use Bonferroni
+# rm(qtl)
+# load("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_peer_highrisk.RData")
+highrisk_HUTCH_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_peer_cis",
+                                           snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                           geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_POS.txt")
+#in the table, value:-log10(pvalue), gene:probeid, opos1:position of snp, opos2:position of geneexp
+# [1] "processed qtl file: /fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_peer_cis"
+# [1] "number of SNPs: 147"
+# [1] "number of phenotypeprobes: 25019"
+# [1] "number of pairs: 4336"
+# [1] "number of unique SNPs: 147"
+# [1] "number of unique phenotypes: 3736"
+# [1] "FDR cutoff: 0.05"
+# [1] "pvalue cutoff: 0.000566975243517476"
+# [1] "number of pairs (after adjustment)62"
+# [1] "number of unique SNPs (after adjustment)40, 0.272108843537415"
+# [1] "number of unique phenotypes (after adjustment)59, 0.0023582077621008"
+highrisk_HUTCH_cis_eqtl=addgenename_GE(highrisk_HUTCH_cis_eqtl,anno=hutch_ge_anno)
+length(unique(highrisk_HUTCH_cis_eqtl$genename))
+#GE covariates use PCA
+highrisk_HUTCH_pca_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_cis",
+                                     snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                     geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_POS.txt")
+highrisk_HUTCH_pca_cis_eqtl=addgenename_GE(highrisk_HUTCH_pca_cis_eqtl,anno=hutch_ge_anno)
+length(unique(highrisk_HUTCH_pca_cis_eqtl$genename))
+#Old result use gleason score, GE_pca, and no SNP_pca
+highrisk_HUTCH_old_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_cis_old",
+                                       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                       geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_POS.txt")
+# [1] "pvalue cutoff: 0.000698999955987891"
+# [1] "number of pairs (after adjustment)64"
+# [1] "number of unique SNPs (after adjustment)37, 0.251700680272109"
+# [1] "number of unique phenotypes (after adjustment)60, 0.00239817738518726"
+highrisk_HUTCH_old_cis_eqtl=addgenename_GE(highrisk_HUTCH_old_cis_eqtl,anno=hutch_ge_anno)
+length(unique(highrisk_HUTCH_old_cis_eqtl$genename))
+#old result, no gleason score
+highrisk_HUTCH_old_nogleason_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_cis_old_nogleason",
+                                       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                       geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_POS.txt")
+# [1] "pvalue cutoff: 0.000674719235162517"
+# [1] "number of pairs (after adjustment)62"
+# [1] "number of unique SNPs (after adjustment)37, 0.251700680272109"
+# [1] "number of unique phenotypes (after adjustment)58, 0.00231823813901435"
+highrisk_HUTCH_old_nogleason_cis_eqtl=addgenename_GE(highrisk_HUTCH_old_nogleason_cis_eqtl,anno=hutch_ge_anno)
+length(unique(highrisk_HUTCH_old_nogleason_cis_eqtl$genename))
+#old result, no gleason score no age
+highrisk_HUTCH_old_nogleasonage_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_highrisk_cis_old_nogleasonage",
+                                                 snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                                 geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_POS.txt")
+# [1] "pvalue cutoff: 0.00061858469996702"
+# [1] "number of pairs (after adjustment)63"
+# [1] "number of unique SNPs (after adjustment)38, 0.258503401360544"
+# [1] "number of unique phenotypes (after adjustment)59, 0.0023582077621008"
+highrisk_HUTCH_old_nogleasonage_cis_eqtl=addgenename_GE(highrisk_HUTCH_old_nogleasonage_cis_eqtl,anno=hutch_ge_anno)
+length(unique(highrisk_HUTCH_old_nogleasonage_cis_eqtl$genename))
+
+#compare peer with pca
+checkoverlapsnps(qtlres1=highrisk_HUTCH_cis_eqtl,qtlres2=highrisk_HUTCH_pca_cis_eqtl,
+                 snpposfile1="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                 snpposfile2="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt")
+# [1] "number of unique SNP1:40"
+# [1] "number of unique SNP2:39"
+# [1] "number of overlapped SNP:38"
+# in2 notin2
+# in1     38      1
+# notin1   2    106
+# [1] 1.306219e-31
+ovarlappairs_HUTCH_cis_eqtl_peer_pca=checkoverlappairs_sameplatform(qtlres1=highrisk_HUTCH_cis_eqtl,qtlres2=highrisk_HUTCH_pca_cis_eqtl)
+# [1] "number of pairs in qtlres1: 62"
+# [1] "number of pairs in qtlres2: 61"
+# [1] "total number of pairs: 64"
+# [1] "number of common pairs: 59"
+#compare peer with old result
+checkoverlapsnps(qtlres1=highrisk_HUTCH_cis_eqtl,qtlres2=highrisk_HUTCH_old_cis_eqtl,
+                 snpposfile1="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                 snpposfile2="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt")
+# [1] "number of unique SNP1:40"
+# [1] "number of unique SNP2:37"
+# [1] "number of overlapped SNP:35"
+# in2 notin2
+# in1     35      2
+# notin1   5    105
+# [1] 4.735097e-26
+ovarlappairs_HUTCH_cis_eqtl_peer_pca=checkoverlappairs_sameplatform(qtlres1=highrisk_HUTCH_cis_eqtl,qtlres2=highrisk_HUTCH_old_cis_eqtl)
+# [1] "number of pairs in qtlres1: 62"
+# [1] "number of pairs in qtlres2: 64"
+# [1] "total number of pairs: 72"
+# [1] "number of common pairs: 54"
+
+
+#TCGA_tumors eqtl
+highrisk_TCGA_tumors_cis_eqtl_all=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TCGA_tumors/eqtl_highrisk_peer_cis",
+                                     snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                     geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumors_GE_POS.txt",fdrcutoff = 1)
+qqplot(pvalue=10^-highrisk_TCGA_tumors_cis_eqtl_all$value)
+#check some pairs manually:
+computep()
+highrisk_TCGA_tumors_cis_eqtl_all=addgenename_GE(highrisk_TCGA_tumors_cis_eqtl_all,anno=tcga_ge_anno)
+length(unique(highrisk_TCGA_tumors_cis_eqtl_all$genename))
+validatepairs_HUTCH_ciseqtl=validatepairs_difplatform()
+validatepairs_HUTCH_ciseqtl=update_highrisk_snp_idx()
+# [1] "number of qtl pairs to validate:62"
+# [1] "number of qtl pairs can be validated:57"
+# [1] "number of pairs validated:39"
+# [1] "number of phenotype (probe) to validate:59"
+# [1] "number of phenotype (probe) can be validated:55"
+# [1] "number of phenotype (gene) to validate:52"
+# [1] "number of phenotype (gene) can be validated:49"
+# [1] "number of phenotype (gene) validated:33"
+# [1] "number of snp to validate:40"
+# [1] "number of snp can be validate within pairs:39"
+# [1] "number of snp validated:29"
+write_qtl_input(validatepairs_HUTCH_ciseqtl,filename ="/fh/fast/stanford_j/Xiaoyu/QTL/result/validatepairs_HUTCH_ciseqtl.txt")
+
+#mqtl--------------
+highrisk_HUTCH_cis_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_cis",
+                                   snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                   geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt")
+# [1] "number of SNPs: 147"
+# [1] "number of phenotypeprobes: 478998"
+# [1] "number of pairs: 104610"
+# [1] "number of unique SNPs: 147"
+# [1] "number of unique phenotypes: 80644"
+# [1] "FDR cutoff: 0.05"
+# [1] "pvalue cutoff: 0.000567510638710477"
+# [1] "number of pairs (after adjustment)1189"
+# [1] "number of unique SNPs (after adjustment)116, 0.789115646258503"
+# [1] "number of unique phenotypes (after adjustment)1136, 0.0023716174180268"
+highrisk_HUTCH_cis_mqtl=addgenename_ME(highrisk_HUTCH_cis_mqtl)
+length(unique(highrisk_HUTCH_cis_mqtl$genename))
+
+#Old result use gleason score and ME_pca
+highrisk_HUTCH_old_cis_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_cis_old",
+                                       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                       geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt")
+# [1] "pvalue cutoff: 0.000670786510527841"
+# [1] "number of pairs (after adjustment)1405"
+# [1] "number of unique SNPs (after adjustment)116, 0.789115646258503"
+# [1] "number of unique phenotypes (after adjustment)1290, 0.00269312189194944"
+highrisk_HUTCH_old_cis_mqtl=addgenename_ME(highrisk_HUTCH_old_cis_mqtl)
+length(unique(highrisk_HUTCH_old_cis_mqtl$genename))
+#old result, no gleason score
+highrisk_HUTCH_old_nogleason_cis_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_cis_old_nogleason",
+                                                 snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                                 geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt")
+# [1] "pvalue cutoff: 0.000676825062735074"
+# [1] "number of pairs (after adjustment)1419"
+# [1] "number of unique SNPs (after adjustment)117, 0.795918367346939"
+# [1] "number of unique phenotypes (after adjustment)1306, 0.00272652495417517"
+highrisk_HUTCH_old_nogleason_cis_mqtl=addgenename_ME(highrisk_HUTCH_old_nogleason_cis_mqtl)
+length(unique(highrisk_HUTCH_old_nogleason_cis_mqtl$genename))
+#old result, no gleason score no age
+highrisk_HUTCH_old_nogleasonage_cis_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_cis_old_nogleasonage",
+                                                 snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                                 geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt")
+# [1] "pvalue cutoff: 0.000672238306805779"
+# [1] "number of pairs (after adjustment)1410"
+# [1] "number of unique SNPs (after adjustment)117, 0.795918367346939"
+# [1] "number of unique phenotypes (after adjustment)1296, 0.00270564804028409"
+highrisk_HUTCH_old_nogleasonage_cis_mqtl=addgenename_ME(highrisk_HUTCH_old_nogleasonage_cis_mqtl)
+length(unique(highrisk_HUTCH_old_nogleasonage_cis_mqtl$genename))
+highrisk_HUTCH_old_nogleasonage_add3snppc_cis_mqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/mqtl_highrisk_cis_old_nogleasonage_add3snppc",
+                                                    snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                                    geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt")
+# [1] "pvalue cutoff: 0.000577958582165979"
+# [1] "number of pairs (after adjustment)1211"
+# [1] "number of unique SNPs (after adjustment)119, 0.80952380952381"
+# [1] "number of unique phenotypes (after adjustment)1151, 0.00240293278886342"
+highrisk_HUTCH_old_nogleasonage_add3snppc_cis_mqtl=addgenename_ME(highrisk_HUTCH_old_nogleasonage_add3snppc_cis_mqtl)
+length(unique(highrisk_HUTCH_old_nogleasonage_add3snppc_cis_mqtl$genename))
+#compare with old result
+checkoverlapsnps(qtlres1=highrisk_HUTCH_cis_mqtl,qtlres2=highrisk_HUTCH_old_cis_mqtl,
+                 snpposfile1="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                 snpposfile2="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt")
+# [1] "number of unique SNP1:115"
+# [1] "number of unique SNP2:116"
+# [1] "number of overlapped SNP:113"
+# in2 notin2
+# in1    113      3
+# notin1   2     29
+# [1] 5.261159e-25
+checkoverlapsnps(qtlres1=highrisk_HUTCH_old_nogleasonage_cis_mqtl,qtlres2=highrisk_HUTCH_old_nogleasonage_add3snppc_cis_mqtl,
+                 snpposfile1="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                 snpposfile2="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt")
+
+ovarlappairs_HUTCH_cis_mqtl=checkoverlappairs_sameplatform(qtlres1=highrisk_HUTCH_cis_mqtl,qtlres2=highrisk_HUTCH_old_cis_mqtl)
+# [1] "number of pairs in qtlres1: 1179"
+# [1] "number of pairs in qtlres2: 1405"
+# [1] "total number of pairs: 1518"
+# [1] "number of common pairs: 1066"
+
+ovarlappairs_HUTCH_cis_mqtl=checkoverlappairs_sameplatform(qtlres1=highrisk_HUTCH_old_nogleasonage_cis_mqtl,
+                                                           qtlres2=highrisk_HUTCH_old_nogleasonage_add3snppc_cis_mqtl)
+# [1] "number of pairs in qtlres1: 1410"
+# [1] "number of pairs in qtlres2: 1211"
+# [1] "total number of pairs: 1485"
+# [1] "number of common pairs: 1136"
+
+#TCGA_tumors mqtl
+highrisk_TCGA_tumors_cis_mqtl_all=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TCGA_tumors/mqtl_highrisk_cis",
+                                             snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                             geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumors_ME_POS.txt",fdrcutoff = 1)
+qqplot(pvalue=10^-highrisk_TCGA_tumors_cis_mqtl_all$value)
+#check some pairs manually:
+computep(snpidx=c(73,81),phenotypeidx=c(12142,8562),
+         snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumors_highrisk_SNP_ME_updatename.txt",
+         phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumors_ME.txt",
+         covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumors_COVA_ME_used.txt")
+
+idx=which(10^-highrisk_TCGA_tumors_cis_mqtl_all$value<=0.05)
+highrisk_TCGA_tumors_cis_mqtl_all=highrisk_TCGA_tumors_cis_mqtl_all[idx,]
+highrisk_TCGA_tumors_cis_mqtl_all=addgenename_ME(highrisk_TCGA_tumors_cis_mqtl_all)
+length(unique(highrisk_TCGA_tumors_cis_mqtl_all$genename))
+validatepairs_HUTCH_cismqtl=validatepairs(qtlres1=highrisk_HUTCH_cis_mqtl,qtlres2=highrisk_TCGA_tumors_cis_mqtl_all,phenotype2=tcga_me_pos)
+# [1] "number of qtl pairs to validate:1189"
+# [1] "number of qtl pairs can be validated:731"
+# [1] "number of pairs validated:579"
+# [1] "number of phenotype to validate:1136"
+# [1] "number of phenotype can be validated:710"
+# [1] "number of phenotype validated:563"
+# [1] "number of snp to validate:116"
+# [1] "number of snp can be validated within pairs:101"
+# [1] "number of snp validated:86"
+validatepairs_HUTCH_cismqtl=update_highrisk_snp_idx(dat=validatepairs_HUTCH_cismqtl)
+write_qtl_input(validatepairs_HUTCH_cismqtl,filename ="/fh/fast/stanford_j/Xiaoyu/QTL/result/validatepairs_HUTCH_cismqtl.txt")
+
+overlap_hutch_highrisk_cis_eqtl_hutch_cis_mqtl=overlappairs(dat1=highrisk_HUTCH_cis_eqtl,dat2=highrisk_HUTCH_cis_mqtl)
+# [1] "number of overlapped SNP:38"
+# [1] "number of phenoytype1:57"
+# [1] "number of phenoytype2:834"
+# [1] "number of triplets:1949"
+validtriplet_HUTCH_ciseqtl_cismqtl=validtriplet_difplatform(dat1=overlap_hutch_highrisk_cis_eqtl_hutch_cis_mqtl$triplet,validateeqtl=highrisk_TCGA_tumors_cis_eqtl_all,
+                      validatemqtl=highrisk_TCGA_tumors_cis_mqtl_all,phenotypemap=hutch_ge_anno,phenotype2=tcga_me_pos)
+# [1] "number of triplets to validate:1949"
+# [1] "number of triplets can be validated considering eqtl genename mapping:1606"
+# [1] "number of triplets can be validated:903"
+# [1] "number of triplets validated:578"
+# [1] "number of snp can be validate:36"
+# [1] "number of snp validated:26"
+validtriplet_HUTCH_ciseqtl_cismqtl=update_highrisk_snp_idx(validtriplet_HUTCH_ciseqtl_cismqtl)
+write_qtl_input(validtriplet_HUTCH_ciseqtl_cismqtl,filename ="/fh/fast/stanford_j/Xiaoyu/QTL/result/validtriplet_HUTCH_ciseqtl_cismqtl.txt")
+
+#Mediation analysis
+Sys.time()
+HUTCH_med_ciseqtl_cismqtl=citqtlpairs_inputfromfiles()
+Sys.time()
+HUTCH_med_cismqtl_ciseqtl=citqtlpairs_inputfromfiles(dat1=highrisk_HUTCH_cis_mqtl,dat2=highrisk_HUTCH_cis_eqtl)
+Sys.time()
+HUTCH_med_ciseqtl_cismqtl=HUTCH_med_ciseqtl_cismqtl[order(HUTCH_med_ciseqtl_cismqtl$snp_idx,HUTCH_med_ciseqtl_cismqtl$gene.x,HUTCH_med_ciseqtl_cismqtl$gene.y),]
+HUTCH_med_cismqtl_ciseqtl=HUTCH_med_cismqtl_ciseqtl[order(HUTCH_med_cismqtl_ciseqtl$snp_idx,HUTCH_med_cismqtl_ciseqtl$gene.y,HUTCH_med_cismqtl_ciseqtl$gene.x),]
+save(HUTCH_med_ciseqtl_cismqtl,HUTCH_med_cismqtl_ciseqtl,file="med_tmp.RData")
+sum(HUTCH_med_ciseqtl_cismqtl$gene.x==HUTCH_med_cismqtl_ciseqtl$gene.y)
+sum(HUTCH_med_ciseqtl_cismqtl$gene.y==HUTCH_med_cismqtl_ciseqtl$gene.x)
+sum(HUTCH_med_ciseqtl_cismqtl$q.cit<=0.05)
+sum(HUTCH_med_cismqtl_ciseqtl$q.cit<=0.05)
+sum(HUTCH_med_ciseqtl_cismqtl$q.cit<=0.05 & HUTCH_med_cismqtl_ciseqtl$q.cit<=0.05)
+HUTCH_triplet=data.frame(snp_idx=HUTCH_med_ciseqtl_cismqtl$snp_idx,geneexp=HUTCH_med_ciseqtl_cismqtl$gene.x,methylation=HUTCH_med_ciseqtl_cismqtl$gene.y)
+HUTCH_triplet$validateinTCGA=NA
+for (i in 1:nrow(HUTCH_triplet))
+{
+  idx=which(validtriplet_HUTCH_ciseqtl_cismqtl$snp_idx==HUTCH_triplet$snp_idx[i] & validtriplet_HUTCH_ciseqtl_cismqtl$gene.x==HUTCH_triplet$geneexp[i]
+            & validtriplet_HUTCH_ciseqtl_cismqtl$gene.y==HUTCH_triplet$methylation[i])
+  if (length(idx)>0)
+  {
+    HUTCH_triplet$validateinTCGA[i]=validtriplet_HUTCH_ciseqtl_cismqtl$validate[idx]
+  }
+}
+sum(HUTCH_med_ciseqtl_cismqtl$gene.x==HUTCH_triplet$geneexp)
+sum(HUTCH_med_cismqtl_ciseqtl$gene.x==HUTCH_triplet$methylation)
+HUTCH_triplet=cbind.data.frame(HUTCH_triplet,HUTCH_med_ciseqtl_cismqtl[,26:35])
+colnames(HUTCH_triplet)[5:ncol(HUTCH_triplet)]=paste0("meth2gen_",colnames(HUTCH_triplet)[5:ncol(HUTCH_triplet)])
+HUTCH_triplet=cbind.data.frame(HUTCH_triplet,HUTCH_med_cismqtl_ciseqtl[,26:35])
+sum(HUTCH_triplet$meth2gen_q.cit<=0.05) #449
+sum(HUTCH_triplet$meth2gen_q.cit<=0.05 & HUTCH_triplet$q.cit>0.05) #118 meth2gen
+sum(HUTCH_triplet$q.cit<=0.05) #428
+sum(HUTCH_triplet$q.cit<=0.05 & HUTCH_triplet$meth2gen_q.cit>0.05) #97 gen2meth
+HUTCH_triplet$medclass=NA
+HUTCH_triplet$medclass[HUTCH_triplet$meth2gen_q.cit<=0.05 & HUTCH_triplet$q.cit>0.05]="meth2gen"
+HUTCH_triplet$medclass[HUTCH_triplet$q.cit<=0.05 & HUTCH_triplet$meth2gen_q.cit>0.05]="gen2meth"
+idx=which(HUTCH_triplet$meth2gen_q.cit<=0.05 & HUTCH_triplet$q.cit<=0.05) #331
+View(HUTCH_triplet[idx,])
+sum(HUTCH_triplet$meth2gen_q.cit[idx]<HUTCH_triplet$q.cit[idx]) #144 meth2gen
+sum(HUTCH_triplet$meth2gen_q.cit[idx]>HUTCH_triplet$q.cit[idx]) #187 gen2meth
+HUTCH_triplet$medclass[HUTCH_triplet$meth2gen_q.cit<=0.05 & HUTCH_triplet$q.cit<=0.05 & HUTCH_triplet$meth2gen_q.cit<HUTCH_triplet$q.cit]="meth2gen1"
+HUTCH_triplet$medclass[HUTCH_triplet$meth2gen_q.cit<=0.05 & HUTCH_triplet$q.cit<=0.05 & HUTCH_triplet$meth2gen_q.cit>HUTCH_triplet$q.cit]="gen2meth1"
+#validation
+TCGA_med_ciseqtl_cismqtl=validate_meds_inputfromfiles()
+TCGA_med_cismqtl_ciseqtl=validate_meds_inputfromfiles(opt="meth2gene")
+HUTCH_triplet$TCGA_meds_meth2gen=HUTCH_triplet$TCGA_meds_gen2meth=NA
+for (i in 1:nrow(HUTCH_triplet))
+{
+  idx=which(TCGA_med_ciseqtl_cismqtl$snp_idx==HUTCH_triplet$snp_idx[i] & TCGA_med_ciseqtl_cismqtl$gene.x==HUTCH_triplet$geneexp[i] & TCGA_med_ciseqtl_cismqtl$gene.y==HUTCH_triplet$methylation[i])
+  if (length(idx)>0)
+  {
+    HUTCH_triplet$TCGA_meds_meth2gen[i]=TCGA_med_ciseqtl_cismqtl$valid_p_cit[idx]
+  }
+  idx=which(TCGA_med_cismqtl_ciseqtl$snp_idx==HUTCH_triplet$snp_idx[i] & TCGA_med_cismqtl_ciseqtl$gene.x==HUTCH_triplet$geneexp[i] & TCGA_med_cismqtl_ciseqtl$gene.y==HUTCH_triplet$methylation[i])
+  if (length(idx)>0)
+  {
+    HUTCH_triplet$TCGA_meds_gen2meth[i]=TCGA_med_cismqtl_ciseqtl$valid_p_cit[idx]
+  }
+}
+idx=which(HUTCH_triplet$TCGA_meds_gen2meth<=0.05 &HUTCH_triplet$medclass=="gen2meth")
+meds_gen2meth=HUTCH_triplet[idx,]
+idx=which(meds_gen2meth$TCGA_meds_meth2gen>0.05)
+meds_gen2meth=meds_gen2meth[idx,]
+meds_gen2meth=meds_gen2meth[order(meds_gen2meth$q.cit),]
+meds_gen2meth$gene=meds_gen2meth$geneexp
+meds_gen2meth=addgenename_GE(datatable = meds_gen2meth,anno=hutch_ge_anno,colname="GE_genename")
+meds_gen2meth$gene=meds_gen2meth$methylation
+meds_gen2meth=addgenename_ME(datatable = meds_gen2meth,colname="ME_genename")
+meds_gen2meth=update_highrisk_snp_idx(meds_gen2meth)
+meds_gen2meth=meds_gen2meth[,c("snp","geneexp","methylation","GE_genename","ME_genename")]
+colnames(meds_gen2meth)[4:5]=c("geneexp_genename","methylation_genename")
+idx=which(HUTCH_triplet$TCGA_meds_meth2gen<=0.05 &HUTCH_triplet$medclass=="meth2gen")
+meds_meth2gen=HUTCH_triplet[idx,]
+write.table(meds_meth2gen,file="../result/mediation_meth2gen.txt",col.names = T,row.names = F,sep="\t",quote=F)
+idx=which(meds_meth2gen$TCGA_meds_gen2meth>0.05)
+if (length(idx)>0) meds_meth2gen=meds_meth2gen[idx,]
+meds_meth2gen=meds_meth2gen[order(meds_meth2gen$meth2gen_q.cit),]
+meds_meth2gen$gene=meds_meth2gen$geneexp
+meds_meth2gen=addgenename_GE(datatable = meds_meth2gen,anno=hutch_ge_anno,colname="GE_genename")
+meds_meth2gen$gene=meds_meth2gen$methylation
+meds_meth2gen=addgenename_ME(datatable = meds_meth2gen,colname="ME_genename")
+meds_meth2gen=update_highrisk_snp_idx(meds_meth2gen)
+meds_meth2gen=meds_meth2gen[,c("snp","geneexp","methylation","GE_genename","ME_genename")]
+colnames(meds_meth2gen)[4:5]=c("geneexp_genename","methylation_genename")
+write.table(meds_gen2meth,file="../result/mediation_gen2meth.txt",col.names = T,row.names = F,sep="\t",quote=F)

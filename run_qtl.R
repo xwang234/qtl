@@ -67,7 +67,7 @@ sum(colnames(snp_pca)!=colnames(pheno_pca))
 covariate=rbind(snp_pca[1:3,],pheno_pca)
 write_qtl_input(covariate,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumors_COVA_GE_used.txt")
 #udpate the 147snp name
-snpspos = read.table(snps_location_file_name, header = TRUE, stringsAsFactors = FALSE)
+snpspos = read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt", header = TRUE, stringsAsFactors = FALSE)
 snp_pheno=read_qtl_input("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumors_highrisk_SNP_GE.txt")
 snp_pheno$id=snpspos$snp
 write_qtl_input(snp_pheno,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumors_highrisk_SNP_GE_updatename.txt")
@@ -175,3 +175,18 @@ do_qtl(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_highrisk_
        output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk_trans",
        cutoff_cis=1,cutoff_trans=0.1,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/NORMAL/mqtl_highrisk.RData")
 
+#GTEx
+#udpate the 147snp name
+snpspos = read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt", header = TRUE, stringsAsFactors = FALSE)
+snp_pheno=read_qtl_input("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/gtex_highrisk_SNP_GE.txt")
+snp_pheno$id=snpspos$snp
+write_qtl_input(snp_pheno,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/gtex_highrisk_SNP_GE_updatename.txt")
+
+do_qtl(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/gtex_highrisk_SNP_GE_updatename.txt",
+       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+       phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/gtex_GE.txt",
+       phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/gtex_GE_POS.txt",
+       covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/gtex_GE_PEER.txt",
+       output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/gtex/eqtl_highrisk_cis",
+       output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/gtex/eqtl_highrisk_trans",
+       cutoff_cis=1,cutoff_trans=1,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/gtex/eqtl_highrisk.RData")

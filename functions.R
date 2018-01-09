@@ -1,6 +1,25 @@
 #/usr/bin/env Rscript
 library(data.table,lib.loc="~/R/x86_64-pc-linux-gnu-library/3.3")
 library(GenomicRanges)
+
+removeconstrows=function(dat)
+{
+  idxconst=rep(F,nrow(dat))
+  for (i in 1:nrow(dat))
+  {
+    if (i %% 10000==0) cat(i,"..")
+    if (var(unlist(dat[i,]))==0 | is.na(var(unlist(dat[i,])))) idxconst[i]=T
+  }
+  dat=dat[!idxconst,]
+}
+
+library(impute)
+imputemissdat=function(dat)
+{
+  tmp=impute.knn(as.matrix(dat))
+  res=as.data.frame(tmp$data)
+}
+
 removeconstrows=function(dat=GE)
 {
   idxconst=rep(F,nrow(dat))
@@ -124,7 +143,7 @@ bigpca=function(dat=t(HUTCH_SNP_GE),prefix=1)
   return(res1)
 }
 
-#peer factor
+#peer factor, need to impute missing data first (scale constant array would introduce NA)
 peer=function(dat=GE)
 {
   
@@ -160,6 +179,38 @@ peer=function(dat=GE)
   numfactors=i
   print(paste0("number of factors: ",numfactors))
   print(paste0("variance explained: ",round(varexplain[numfactors],digits = 3)))
+  #the factors
+  x=PEER_getX(model)
+  x=as.data.frame(t(x))
+  colnames(x)=colnames(dat)
+  res=cbind.data.frame(id=paste0("factor",1:numfactors),x)
+  return(res)
+}
+
+#get peer factors by setting the number of factors first
+peer_number=function(dat=GE,numfactors=15)
+{
+  
+  #scale the data first
+  dat=t(scale(t(dat)))
+  totvar=0
+  for (i in 1:nrow(dat)) totvar=totvar+var(unlist(dat[i,]))
+
+  library(peer)
+  
+  model=PEER()
+  PEER_setNk(model,numfactors)
+  PEER_setPhenoMean(model, as.matrix(t(dat)))
+  #PEER_setNmax_iterations(model, 1000)
+  PEER_update(model)
+  resi=PEER_getResiduals(model)
+  resivar=0
+  for (j in 1:ncol(resi)) resivar=resivar+var(resi[,j])
+  print((totvar-resivar)/totvar)
+  varexplain=(totvar-resivar)/totvar
+    
+  print(paste0("number of factors: ",numfactors))
+  print(paste0("variance explained: ",round(varexplain,digits = 3)))
   #the factors
   x=PEER_getX(model)
   x=as.data.frame(t(x))
@@ -430,6 +481,7 @@ addgenename_ME=function(datatable=tmp7,anno1=anno,colname="genename",splitstr=";
     datatable[idx,colname]=NA
     for (i in 1:nrow(datatable))
     {
+      if (i%%10000==0) cat(i,"..")
       if (!is.na(datatable[i,colname]))
       {
         tmp=unlist(strsplit(datatable[i,colname],split=splitstr,fixed = T))
@@ -482,12 +534,16 @@ checkoverlappairs_sameplatform=function(qtlres1=highrisk_HUTCH_cis_eqtl,qtlres2=
 }
 
 #use gene name for validating pairs
-validatepairs_difplatform=function(qtlres1=highrisk_HUTCH_cis_eqtl,qtlres2=highrisk_TCGA_tumors_cis_eqtl_all,phenotypemap=hutch_ge_anno)
+validatepairs_difplatform=function(qtlres1=highrisk_HUTCH_cis_eqtl,qtlres2=highrisk_TCGA_tumors_cis_eqtl_all,phenotypemap=hutch_ge_anno,opt="pvalue")
 {
   tmp=merge(qtlres1,qtlres2,by=c("snp_idx","genename"))
-  idx=10^-tmp$value.y<=0.05 & tmp$beta.x*tmp$beta.y>0
-  tmp1=t.test(tmp$value.x[idx],tmp$value.x[!idx])
-  print(tmp1$p.value)
+  if (opt=="pvalue")
+  {
+    idx=10^-tmp$value.y<=0.05 & tmp$beta.x*tmp$beta.y>0
+  }else
+  {
+    idx=10^-tmp$value.y<=0.05/nrow(tmp) & tmp$beta.x*tmp$beta.y>0 #FWER
+  }
   print(paste0("number of qtl pairs to validate:",nrow(qtlres1)))
   tmp1=merge(qtlres1,phenotypemap,by.x="gene",by.y="Probe_Id")
   print(paste0("number of qtl pairs can be validated:",sum(!is.na(tmp1$TCGA_Probe_Id))))
@@ -495,6 +551,7 @@ validatepairs_difplatform=function(qtlres1=highrisk_HUTCH_cis_eqtl,qtlres2=highr
   
   print(paste0("number of phenotype (probe) to validate:",length(unique(qtlres1$gene))))
   print(paste0("number of phenotype (probe) can be validated:",length(unique(tmp1$gene[!is.na(tmp1$TCGA_Probe_Id)]))))
+  print(paste0("number of phenotype (probe) validated:",length(unique(tmp$gene.x[idx]))))
   print(paste0("number of phenotype (gene) to validate:",length(unique(qtlres1$genename))))
   print(paste0("number of phenotype (gene) can be validated:",length(unique(tmp1$genename[!is.na(tmp1$TCGA_Probe_Id)]))))
   print(paste0("number of phenotype (gene) validated:",length(unique(tmp$genename[idx]))))
@@ -502,26 +559,47 @@ validatepairs_difplatform=function(qtlres1=highrisk_HUTCH_cis_eqtl,qtlres2=highr
   print(paste0("number of snp to validate:",length(unique(qtlres1$snp_idx))))
   print(paste0("number of snp can be validate within pairs:",length(unique(tmp1$snp_idx[!is.na(tmp1$TCGA_Probe_Id)]))))
   print(paste0("number of snp validated:",length(unique(tmp$snp_idx[idx]))))
-  return(tmp[idx,])
+  if (sum(idx)>0)
+  {
+    # tmp1=t.test(tmp$value.x[idx],tmp$value.x[!idx])
+    # print(tmp1$p.value)
+    
+    return(tmp[idx,])
+  }else
+  {
+    return(NA)
+  }
 }
 
 #in the same platforms
-validatepairs=function(qtlres1=highrisk_cis_hutch_eqtl,qtlres2=highrisk_all_NORMAL_cis_eqtl,phenotype2=tcga_ge_pos)
+validatepairs=function(qtlres1=highrisk_cis_hutch_eqtl,qtlres2=highrisk_all_NORMAL_cis_eqtl,phenotype2=tcga_ge_pos,opt="pvalue")
 {
   tmp=merge(qtlres1,qtlres2,by=c("snp_idx","gene"))
-  idx=10^-tmp$value.y<=0.05 & tmp$beta.x*tmp$beta.y>0
+  if (opt=="pvalue")
+  {
+    idx=10^-tmp$value.y<=0.05 & tmp$beta.x*tmp$beta.y>0
+  }else
+  {
+    idx=10^-tmp$value.y<=0.05/nrow(tmp) & tmp$beta.x*tmp$beta.y>0
+  }
   print(paste0("number of qtl pairs to validate:",nrow(qtlres1)))
   print(paste0("number of qtl pairs can be validated:",sum(qtlres1$gene %in% phenotype2[,1],na.rm=T)))
   print(paste0("number of pairs validated:",sum(idx)))
   
   print(paste0("number of phenotype to validate:",length(unique(qtlres1$gene))))
   print(paste0("number of phenotype can be validated:",length(unique(qtlres1$gene[qtlres1$gene %in% phenotype2[,1]]))))
-  print(paste0("number of phenotype validated:",length(unique(tmp$gene))))
+  print(paste0("number of phenotype validated:",length(unique(tmp$gene[idx]))))
   
   print(paste0("number of snp to validate:",length(unique(qtlres1$snp_idx))))
   print(paste0("number of snp can be validated within pairs:",length(unique(qtlres1$snp_idx[qtlres1$gene %in% phenotype2[,1]]))))
   print(paste0("number of snp validated:",length(unique(tmp$snp_idx[idx]))))
-  return(tmp)
+  if (length(idx)>0)
+  {
+    return(tmp[idx,])
+  }else
+  {
+    return(NA)
+  }
 }
 
 #transform snp_idx to snp names
@@ -755,7 +833,7 @@ citqtlpairs_inputfromfiles=function(dat1=highrisk_HUTCH_cis_eqtl,dat2=highrisk_H
         # summary(fit2)
         
       }
-      citresults[[ i ]]=cit.cp(g,x,y,covariate2,n.perm=100)
+      citresults[[ i ]]=cit.cp(g,x,y,covariate2,n.perm=100,n.resampl=100,rseed =10000)
     }
     fdrresults=fdr.cit(citresults)
     fdrresults=cbind.data.frame(tmp,fdrresults)
@@ -825,7 +903,7 @@ computep_meds_inputfromfiles=function(meds=validtriplet_HUTCH_ciseqtl_cismqtl, #
       x=unlist(GE2[idx2,])
       y=unlist(ME2[idx3,])
     }
-    validres=rbind(validres,cit.cp(g,x,y,covariate2))
+    validres=rbind(validres,cit.cp(g,x,y,covariate2,n.resampl = 100))
   }
   meds1=cbind(meds,data.frame(matrix(ncol=ncol(validres),nrow=nrow(meds))))
   colnames(meds1)[(ncol(meds)+1):ncol(meds1)]=paste0("valid_",colnames(validres))
@@ -833,3 +911,243 @@ computep_meds_inputfromfiles=function(meds=validtriplet_HUTCH_ciseqtl_cismqtl, #
   return(meds1)
 }
 
+# diff_tumror_normal_eqtl=function(dat1=highrisk_HUTCH_cis_eqtl_all,dat2=highrisk_gtex_cis_eqtl_all)
+# {
+#   dat1=dat1[!duplicated(dat1$genename),]
+#   dat2=dat2[!duplicated(dat2$genename),]
+#   tmp=merge(dat1,dat2,by=c("snp_idx","genename"))
+#   pvalue=rep(NA,nrow(tmp))
+#   for (i in 1:nrow(tmp))
+#   {
+#     if (tmp$tstat.x[i]*tmp$tstat.y[i]!=0)
+#     {
+#       tscore=(tmp$beta.x[i]-tmp$beta.y[i])/sqrt((tmp$beta.x[i]/tmp$tstat.x[i])^2+(tmp$beta.y[i]/tmp$tstat.y[i])^2)
+#     }else
+#     {
+#       tscore=0
+#     }
+#     pvalue[i]=2*pnorm(abs(tscore),lower.tail = F)
+#   }
+#   return(pvalue)
+# }
+
+diff_tumror_normal_eqtl=function(dat1=highrisk_HUTCH_cis_eqtl_all,dat2=highrisk_TCGA_tumors_cis_eqtl_all,dat3=highrisk_gtex_cis_eqtl_all)
+{
+  #combine analysis of dat1 and dat2 at snp-gene level
+  dat1=dat1[order(dat1$snp_idx,dat1$genename),]
+  #remove duplicated pairs based on p-value
+  dat11=NULL
+  for (i in 1:nrow(dat1))
+  {
+    idx1=which(dat1$snp_idx==dat1$snp_idx[i] & dat1$genename==dat1$genename[i])
+    if (length(idx1)==1)
+    {
+      dat11=rbind.data.frame(dat11,dat1[idx1,])
+    }else
+    {
+      idx2=which.max(dat1$value[idx1])
+      idx3=which(dat11$snp_idx==dat1$snp_idx[idx1[idx2]]&dat11$genename==dat1$genename[idx1[idx2]])
+      if (length(idx3)==0)
+      {
+        dat11=rbind(dat11,dat1[idx1[idx2],])
+      }
+    }
+  }
+ 
+  dat2=dat2[order(dat2$snp_idx,dat2$genename),]
+  #remove duplicated pairs based on p-value
+  dat22=NULL
+  for (i in 1:nrow(dat2))
+  {
+    idx1=which(dat2$snp_idx==dat2$snp_idx[i] & dat2$genename==dat2$genename[i])
+    if (length(idx1)==1)
+    {
+      dat22=rbind.data.frame(dat22,dat2[idx1,])
+    }else
+    {
+      idx2=which.max(dat2$value[idx1])
+      idx3=which(dat22$snp_idx==dat2$snp_idx[idx1[idx2]]&dat22$genename==dat2$genename[idx1[idx2]])
+      if (length(idx3)==0)
+      {
+        dat22=rbind(dat22,dat2[idx1[idx2],])
+      }
+    }
+  }
+  
+  dat3=dat3[order(dat3$snp_idx,dat3$genename),]
+  #remove duplicated pairs based on p-value
+  dat33=NULL
+  for (i in 1:nrow(dat3))
+  {
+    idx1=which(dat3$snp_idx==dat3$snp_idx[i] & dat3$genename==dat3$genename[i])
+    if (length(idx1)==1)
+    {
+      dat33=rbind.data.frame(dat33,dat3[idx1,])
+    }else
+    {
+      idx2=which.max(dat3$value[idx1])
+      idx3=which(dat33$snp_idx==dat3$snp_idx[idx1[idx2]]&dat33$genename==dat3$genename[idx1[idx2]])
+      if (length(idx3)==0)
+      {
+        dat33=rbind(dat33,dat3[idx1[idx2],])
+      }
+    }
+  }
+  
+  dat=merge(dat11,dat22,by=c("snp_idx","genename"))
+  dat=merge(dat,dat33,by=c("snp_idx","genename"))
+  dat$var=(dat$beta/dat$tstat)^2
+  dat$pvalue=10^-dat$value
+  dat$beta2=NA
+  dat$var2=NA
+  dat$pvalue2=NA
+  dat$pvalue_diff=NA
+  pvalue=rep(1,nrow(dat))
+  for (i in 1:nrow(dat))
+  {
+    if (dat$tstat.x[i]*dat$tstat.y[i]*dat$tstat[i]!=0)
+    {
+      v1=(dat$beta.x[i]/dat$tstat.x[i])^2
+      v2=(dat$beta.y[i]/dat$tstat.y[i])^2
+      w1=1/v1
+      w2=1/v2
+      beta2=(w1*dat$beta.x[i]+w2*dat$beta.y[i])/(w1+w2)
+      dat$beta2[i]=beta2
+      var2=1/(w1+w2)
+      dat$var2[i]=var2
+      tscore2=beta2/sqrt(var2)
+      dat$pvalue2[i]=2*pnorm(abs(tscore2),lower.tail = F)
+      tscore=(beta2-dat$beta[i])/sqrt(var2+(dat$beta[i]/dat$tstat[i])^2)
+      pvalue[i]=2*pnorm(abs(tscore),lower.tail = F)
+    }
+  }
+  idx=order(pvalue)
+  pvalue=pvalue[idx]
+  dat=dat[idx,]
+  dat$pvalue_diff=pvalue
+  return(dat)
+}
+
+unique_eqtlpairs=function(dat1=highrisk_HUTCH_cis_eqtl,printflag=T)
+{
+  if ("snp_idx" %in% colnames(dat1) & "genename" %in% colnames(dat1))
+  {
+    dat2=NULL
+    eqtlpairs=unique(dat1[,c("snp_idx","genename")])
+    if (nrow(eqtlpairs)>10000) print(paste0("number of pairs:",nrow(eqtlpairs)))
+    for (i in 1:nrow(eqtlpairs))
+    {
+      if (i %% 10000==0) cat(i,"..")
+      idx=which(dat1$snp_idx==eqtlpairs$snp_idx[i] & dat1$genename==eqtlpairs$genename[i])
+      idx1=which.max(dat1$value[idx])
+      dat2=rbind.data.frame(dat2,dat1[idx[idx1],])
+    }
+  }else
+  {
+    dat2=dat1
+  }
+  print(paste0("number of pairs: ",nrow(dat2)))
+  print(paste0("number of unique SNPs: ",length(unique(dat2$snp_idx))))
+  print(paste0("number of unique genes: ",length(unique(dat2$genename))))
+  if (length(unique(dat2$snp_idx))<length(unique(dat2$genename)) & printflag==T)
+  {
+    refsnps=read.table("../data/RESUB_Supplementary_Table16_v9.txt",header=T,sep="\t",stringsAsFactors = F)
+    refsnps$Chr=gsub(23,"X",refsnps$Chr)
+    highrisk_snp=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",header=T,stringsAsFactors = F)
+    uniqgenes=as.character(unique(dat2$genename))
+    uniqsnps=as.character(unique(dat2$snp_idx))
+    for (i in 1:length(uniqsnps))
+    {
+      idx=which(dat2$snp_idx==uniqsnps[i])
+      if (length(idx)>1)
+      {
+        idx3=which(refsnps$Chr==highrisk_snp$chr[as.numeric(uniqsnps[i])] &refsnps$Position==highrisk_snp$pos[as.numeric(uniqsnps[i])])
+        print(paste0("snp: ",refsnps$SNP[idx3],",",paste0(dat2$genename[idx],collapse = "|")))
+      }
+    }
+  }
+  return(dat2)
+}
+
+add_validatedgenes_snp=function(dat=validatepairs_HUTCH_ciseqtl_fwer,dat1=refsnps,colname="Validated_in_eQTL")
+{
+  dat$genename=as.character(dat$genename)
+  dat1$tmp=NA
+  for (i in 1:nrow(dat1))
+  {
+    idx=which(dat$snp==dat1$SNP[i])
+    if (length(idx)>0)
+    {
+      numNA=sum(is.na(dat$genename[idx]))
+      if (numNA>0)
+      {
+        genes=paste0(numNA,"intergenic")
+      }else
+      {
+        genes=NULL
+      }
+      for (j in 1:length(idx))
+      {
+        if (!is.na(dat$genename[idx[j]]))
+        {
+          tmp1=unlist(strsplit(dat$genename[idx[j]],"|",fixed = T)) #for mqtls using | in genename
+          genes=c(genes,tmp1)
+          genes=unique(genes)
+        }
+      }
+      dat1$tmp[i]=paste0(genes,collapse = ";")
+    }
+  }
+  colnames(dat1)=gsub("tmp",colname,colnames(dat1))
+  return(dat1)
+}
+
+table_mqtl=function(dat=validatepairs_HUTCH_cismqtl_fwer)
+{
+  res=data.frame(matrix(0,nrow=13,ncol=3))
+  colnames(res)=c("annotation","number","percent")
+  res$annotation=c("CpG island","North shore","South shore","North shelf","South shelf","TSS1500","TSS200","5'UTR","1st Exon","Body","3'UTR","Enhancer","DHS")
+  dat1=merge(dat,anno,by.x="gene",by.y="IlmnID")
+  idx=duplicated(dat1$gene)
+  dat1=dat1[!idx,]
+  tmp=table(dat1$Relation_to_UCSC_CpG_Island)
+  res$number[1]=tmp[which(names(tmp)=="Island")]
+  res$number[2]=tmp[which(names(tmp)=="N_Shore")]
+  res$number[3]=tmp[which(names(tmp)=="S_Shore")]
+  res$number[4]=tmp[which(names(tmp)=="N_Shelf")]
+  res$number[5]=tmp[which(names(tmp)=="S_Shelf")]
+  res$percent[1:5]=floor(100*res$number[1:5]/nrow(dat1))
+  dat1$UCSC_RefGene_Group=as.character(dat1$UCSC_RefGene_Group)
+  for (i in 1:nrow(dat1))
+  {
+    if (grepl("TSS1500",dat1$UCSC_RefGene_Group[i]))
+      res$number[6]=res$number[6]+1
+    if (grepl("TSS200",dat1$UCSC_RefGene_Group[i]))
+      res$number[7]=res$number[7]+1
+    if (grepl("5'UTR",dat1$UCSC_RefGene_Group[i]))
+      res$number[8]=res$number[8]+1
+    if (grepl("1stExon",dat1$UCSC_RefGene_Group[i]))
+      res$number[9]=res$number[9]+1
+    if (grepl("Body",dat1$UCSC_RefGene_Group[i]))
+      res$number[10]=res$number[10]+1
+    if (grepl("3'UTR",dat1$UCSC_RefGene_Group[i]))
+      res$number[11]=res$number[11]+1
+  }
+  res$percent[6:11]=floor(100*res$number[6:11]/nrow(dat1))
+  res$number[12]=sum(dat1$Enhancer==T,na.rm=T)
+  res$percent[12]=floor(100*res$number[12]/nrow(dat1))
+  res$number[13]=sum(dat1$DHS==T,na.rm=T)
+  res$percent[13]=floor(100*res$number[13]/nrow(dat1))
+  return(res)
+}
+
+read_qtl_input_matrix=function(filename)
+{
+  dat=fread(filename,header=T,sep="\t",stringsAsFactors = F)
+  dat=as.data.frame(dat)
+  colnames(dat)=gsub("^X","",colnames(dat))
+  colnames(dat)=gsub(".","-",colnames(dat),fixed = T)
+  rownames(dat)=dat[,1]
+  dat=dat[,-1]
+  return(dat)
+}

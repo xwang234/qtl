@@ -185,6 +185,15 @@ removeconstrows=function(dat=GE)
 GE=removeconstrows(dat=GE)
 tmp=cbind.data.frame(id=rownames(GE),GE)
 write.table(tmp,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumors_GE.txt",col.names = T,row.names = F,sep="\t",quote=F)
+#JAN5 update---standardize GE
+tmp=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumors_GE.txt",header=T,sep="\t",stringsAsFactors = F)
+colnames(tmp)=gsub(".","-",colnames(tmp),fixed = T)
+rownames(tmp)=tmp$id
+GE=tmp[,-1]
+GE=t(scale(t(GE)))
+tmp=cbind.data.frame(id=rownames(GE),GE)
+write.table(tmp,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumors_GE.txt",col.names = T,row.names = F,sep="\t",quote=F)
+#------
 
 #the distribution of RPKMs in each sample was quantile-transformed using the average empirical distribution observed across all samples. Expression measurements for each gene in each tissue were subsequently transformed to the quantiles of the standard normal distribution
 normalizeGE=function(dat=GE)

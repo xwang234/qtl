@@ -479,6 +479,16 @@ colnames(GE1)=gsub("^X","",colnames(GE1))
 idx=match(hutch_geneexp_samples,colnames(GE1))
 HUTCH_GE=GE1[,c(1,idx)]
 write.table(HUTCH_GE,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE.txt",row.names = F,sep="\t",quote=F)
+#Jan5 update---standardize GE
+tmp=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE.txt",header=T,sep="\t",stringsAsFactors = F)
+rownames(tmp)=tmp$id
+colnames(tmp)=gsub("^X","",colnames(tmp))
+tmp=tmp[,-1]
+tmp1=t(scale(t(tmp)))
+tmp1=cbind.data.frame(id=rownames(tmp1),tmp1)
+write.table(tmp1,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE.txt",row.names = F,sep="\t",quote=F)
+#------
+
 HUTCH_GE_norm=normalizeGE(dat=HUTCH_GE[,2:ncol(HUTCH_GE)])
 HUTCH_GE_norm=cbind.data.frame(id=HUTCH_GE$id,HUTCH_GE_norm)
 write.table(HUTCH_GE_norm,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_norm.txt",row.names = F,sep="\t",quote=F)

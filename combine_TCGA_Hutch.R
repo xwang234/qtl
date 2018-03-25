@@ -7,9 +7,11 @@ load("/fh/fast/dai_j/CancerGenomics/prostate_methylation/annotation.RData")
 load("/fh/fast/stanford_j/Xiaoyu/QTL/data/TCGAnormals.RData")
 load("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/normtumor_GEME.RData")
 load("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/imputation/imputation_GEME.RData") #load GE, ME all hutch samples
-hutch_samples=colnames(normal_ge)[colnames(normal_ge) %in% colnames(GE)]
-idx=match(hutch_samples,colnames(normal_methy))
-hutch_methy=normal_methy[,idx]
+hutch_intumorsamples=colnames(normal_ge)[colnames(normal_ge) %in% colnames(GE)] #only 14 normal samples have genotype data
+hutch_samples=colnames(normal_ge) #normal samples
+#idx=match(hutch_samples,colnames(normal_methy))
+#hutch_methy=normal_methy[,idx]
+hutch_methy=normal_methy
 rownames(hutch_methy)=rownames(ME)
 
 #read seminal vesicles info for TCGA
@@ -245,33 +247,78 @@ table(tcga_ge_anno$match)
 sum(!grepl("|",tcga_ge_anno$hutchidx,fixed = T))
 #[1] 16913
 
-idx=match(tcga_geneexp_samples,colnames(geneexpdata))
-tcga_geneexp=geneexpdata[,idx]
-idx=!is.na(tcga_ge_anno$hutchidx)
-tcga_geneexp=tcga_geneexp[idx,]
-
-idx=which(!is.na(tcga_ge_anno$hutchidx))
-hutch_geneexp=data.frame(matrix(NA,nrow=length(idx),ncol=ncol(normal_ge2)))
-colnames(hutch_geneexp)=colnames(normal_ge2)
-allnormal_geneexp_pos=data.frame(matrix(NA,nrow=length(idx),ncol=4))
-colnames(allnormal_geneexp_pos)=c("geneid","chr","s1","s2")
-allnormal_geneexp_pos$chr=tcga_ge_anno$chr[idx]
+#geneexp at gene level
+idx=which(tcga_ge_anno$match %in% c("acc","gene"))
+#add a hutch gene column
+tcga_ge_anno$hutch_gene=NA
+tcga_ge_anno$hutch_start=NA
+tcga_ge_anno$hutch_end=NA
 for (i in 1:length(idx))
 {
   if (i %% 1000==0) cat(i,"..")
   tmp=as.integer(unlist(strsplit(tcga_ge_anno$hutchidx[idx[i]],"|",fixed=T)))
-  if (length(tmp)==1)
+  tcga_ge_anno$hutch_gene[idx[i]]=hutch_ge_anno$Symbol[tmp[1]]
+  tcga_ge_anno$hutch_start[idx[i]]=min(hutch_ge_anno$start[tmp])
+  tcga_ge_anno$hutch_end[idx[i]]=max(hutch_ge_anno$end[tmp])
+}
+sum(duplicated(tcga_ge_anno$hutch_gene[!is.na(tcga_ge_anno$hutch_gene)])) #0
+#make sure all have hutch_gene
+idx=which(!tcga_ge_anno$match %in% c("gene","acc"))
+for (i in idx)
+{
+  tmp=unlist(strsplit(rownames(geneexpdata)[i],"|",fixed=T))
+  if (tmp[1]=="?")
   {
-    hutch_geneexp[i,]=normal_ge2[tmp,]
-    allnormal_geneexp_pos$geneid[i]=hutch_ge_anno$Probe_Id[tmp]
-    allnormal_geneexp_pos$s1[i]=hutch_ge_anno$start[tmp]
-    allnormal_geneexp_pos$s2[i]=hutch_ge_anno$end[tmp]
+    tcga_ge_anno$hutch_gene[i]=paste0("NA__",tmp[2])
   }else
   {
-    hutch_geneexp[i,]=colMeans(normal_ge2[tmp,])
-    allnormal_geneexp_pos$geneid[i]=hutch_ge_anno$Probe_Id[tmp][1]
-    allnormal_geneexp_pos$s1[i]=min(hutch_ge_anno$start[tmp])
-    allnormal_geneexp_pos$s2[i]=max(hutch_ge_anno$end[tmp])
+    tcga_ge_anno$hutch_gene[i]=paste0("NA__",tmp[1])
+  }
+}
+sum(duplicated(tcga_ge_anno$hutch_gene)) #0
+
+# idx=match(tcga_geneexp_samples,colnames(geneexpdata)) #tcga_geneexp_samples was from extract_TCGASNPGEME.R
+# tcga_geneexp=geneexpdata[,idx]
+#idx=which(tcga_ge_anno$match %in% c("acc","gene"))
+#tcga_geneexp=tcga_geneexp[idx,]
+hutch_geneexp=normal_ge2
+gene_hutch=hutch_ge_anno$Symbol
+gene_hutch=gene_hutch[!is.na(gene_hutch)]
+gene_tcga=tcga_ge_anno$hutch_gene
+gene_tcga=gene_tcga[!is.na(gene_tcga)]
+gene_com=intersect(unique(gene_tcga),unique(gene_hutch))
+length(gene_com) #[1] 17457
+
+hutch_geneexp=data.frame(matrix(NA,nrow=length(gene_com),ncol=ncol(normal_ge2)))
+colnames(hutch_geneexp)=colnames(normal_ge2)
+rownames(hutch_geneexp)=gene_com
+idx=match(gene_com,tcga_ge_anno$hutch_gene)
+tcga_geneexp=geneexpdata[idx,]
+rownames(tcga_geneexp)=gene_com
+allnormal_geneexp_pos=data.frame(matrix(NA,nrow=length(gene_com),ncol=4))
+colnames(allnormal_geneexp_pos)=c("geneid","chr","s1","s2")
+allnormal_geneexp_pos$geneid=gene_com
+allnormal_geneexp_pos$chr=tcga_ge_anno$chr[idx]
+allnormal_geneexp_pos$s1=tcga_ge_anno$start[idx] #use range definition from TCGA (sample size is bigger)
+allnormal_geneexp_pos$s2=tcga_ge_anno$end[idx]
+#allnormal_geneexp_pos$chr=tcga_ge_anno$chr[idx]
+for (i in 1:length(gene_com))
+{
+  if (i %% 1000==0) cat(i,"..")
+  #tmp=as.integer(unlist(strsplit(tcga_ge_anno$hutchidx[idx[i]],"|",fixed=T)))
+  idx1=which(hutch_ge_anno$Symbol==gene_com[i])
+  if (length(idx1)==1)
+  {
+    hutch_geneexp[i,]=normal_ge2[idx1,]
+    # allnormal_geneexp_pos$geneid[i]=hutch_ge_anno$Probe_Id[tmp]
+    # allnormal_geneexp_pos$s1[i]=hutch_ge_anno$start[tmp]
+    # allnormal_geneexp_pos$s2[i]=hutch_ge_anno$end[tmp]
+  }else
+  {
+    hutch_geneexp[i,]=colMeans(normal_ge2[idx1,])
+    # allnormal_geneexp_pos$geneid[i]=hutch_ge_anno$Probe_Id[tmp][1]
+    # allnormal_geneexp_pos$s1[i]=min(hutch_ge_anno$start[tmp])
+    # allnormal_geneexp_pos$s2[i]=max(hutch_ge_anno$end[tmp])
   }
 }
 
@@ -280,50 +327,54 @@ length(tcga_geneexp_samples)
 #[1] 48 number of gene exp samples
 idx=match(tcga_geneexp_samples,colnames(tcga_geneexp))
 tcga_geneexp=tcga_geneexp[,idx]
-save(hutch_samples,tcga_methy,hutch_methy,allnormal_methy,allnormal_geneexp_pos,hutch_ge_anno,tcga_ge_anno,hutch_geneexp,tcga_geneexp,
-     file="/fh/fast/stanford_j/Xiaoyu/QTL/data/allnormaldata.RData")
-tcga_ge_anno$gene=rownames(geneexpdata)
-TCGA_tumors_GE_POS=fread("../result/qtl_input/TCGA_tumors_GE_POS.txt",header=T,sep="\t")
-for (i in 1:nrow(tcga_ge_anno))
-{
-  if (tcga_ge_anno$gene[i] %in% TCGA_tumors_GE_POS$geneid)
-  {
-    idx=which(TCGA_tumors_GE_POS$geneid==tcga_ge_anno$gene[i])
-    tcga_ge_anno$start[i]=TCGA_tumors_GE_POS$s1[idx]
-    tcga_ge_anno$end[i]=TCGA_tumors_GE_POS$s2[idx]
-  }
-}
-#make an anno file for TCGA 
-tcga_ge_anno$Probe_Id=tcga_ge_anno$gene
-tcga_ge_anno$Symbol=NA
-for (i in 1:nrow(tcga_ge_anno))
-{
-  tmp=unlist(strsplit(tcga_ge_anno$gene[i],"|",fixed = T))
-  if (!"?" %in% tmp[1])
-  {
-      tcga_ge_anno$Symbol[i]=tmp[1]
-  }else
-  {
-    if (!is.na(tcga_ge_anno$match[i]))
-    {
-      tmp1=as.integer(unlist(strsplit(tcga_ge_anno$hutchidx[i],"|",fixed = T)))
-      tcga_ge_anno$Symbol[i]=hutch_ge_anno$Symbol[tmp1[1]]
-    }
-  }
-}
-#add matched TCGA probeid to hutch ge anno
-hutch_ge_anno$TCGA_Probe_Id=NA
-for (i in 1:nrow(tcga_ge_anno))
-{
-  if (!is.na(tcga_ge_anno$match[i]))
-  {
-    tmp1=as.integer(unlist(strsplit(tcga_ge_anno$hutchidx[i],"|",fixed = T)))
-    hutch_ge_anno$TCGA_Probe_Id[tmp1]=tcga_ge_anno$gene[i]
-  }
-}
-
-save(tcga_ge_anno,hutch_ge_anno,file="/fh/fast/stanford_j/Xiaoyu/QTL/data/Geneexp_map_TCGA_HUTCH.RData")
 allnormal_geneexp=cbind.data.frame(tcga_geneexp,hutch_geneexp)
+
+
+
+save(hutch_intumorsamples,methydata,tcga_methy,hutch_methy,allnormal_methy,allnormal_geneexp_pos,hutch_ge_anno,tcga_ge_anno,normal_ge2,hutch_geneexp,geneexpdata,tcga_geneexp,
+    file="/fh/fast/stanford_j/Xiaoyu/QTL/data/allnormaldata.RData")
+# tcga_ge_anno$gene=rownames(geneexpdata)
+# TCGA_tumors_GE_POS=fread("../result/qtl_input/TCGA_tumors_GE_POS.txt",header=T,sep="\t")
+# for (i in 1:nrow(tcga_ge_anno))
+# {
+#   if (tcga_ge_anno$gene[i] %in% TCGA_tumors_GE_POS$geneid)
+#   {
+#     idx=which(TCGA_tumors_GE_POS$geneid==tcga_ge_anno$gene[i])
+#     tcga_ge_anno$start[i]=TCGA_tumors_GE_POS$s1[idx]
+#     tcga_ge_anno$end[i]=TCGA_tumors_GE_POS$s2[idx]
+#   }
+# }
+#make an anno file for TCGA 
+# tcga_ge_anno$Probe_Id=tcga_ge_anno$gene
+# tcga_ge_anno$Symbol=NA
+# for (i in 1:nrow(tcga_ge_anno))
+# {
+#   tmp=unlist(strsplit(tcga_ge_anno$gene[i],"|",fixed = T))
+#   if (!"?" %in% tmp[1])
+#   {
+#       tcga_ge_anno$Symbol[i]=tmp[1]
+#   }else
+#   {
+#     if (!is.na(tcga_ge_anno$match[i]))
+#     {
+#       tmp1=as.integer(unlist(strsplit(tcga_ge_anno$hutchidx[i],"|",fixed = T)))
+#       tcga_ge_anno$Symbol[i]=hutch_ge_anno$Symbol[tmp1[1]]
+#     }
+#   }
+# }
+#add matched TCGA probeid to hutch ge anno
+# hutch_ge_anno$TCGA_Probe_Id=NA
+# for (i in 1:nrow(tcga_ge_anno))
+# {
+#   if (!is.na(tcga_ge_anno$match[i]))
+#   {
+#     tmp1=as.integer(unlist(strsplit(tcga_ge_anno$hutchidx[i],"|",fixed = T)))
+#     hutch_ge_anno$TCGA_Probe_Id[tmp1]=tcga_ge_anno$gene[i]
+#   }
+# }
+# 
+save(tcga_ge_anno,hutch_ge_anno,file="/fh/fast/stanford_j/Xiaoyu/QTL/data/Geneexp_map_TCGA_HUTCH.RData")
+
 
 #normalization
 library(sva)
@@ -344,7 +395,7 @@ mynormalize=function(data=allnormal_geneexp,targetid=1:48,normid=49:ncol(allnorm
   for (i in 1:nrow(data))
   {
     if (i %% 5000==0) cat(i,'..')
-    if(any(data[i,targetid]!=0)) #for GE
+    if(any(data[i,targetid]!=0) & any(!is.na(data[i,targetid]))) #for GE
     {
       res[i,normid]=normalize.quantiles.use.target(as.matrix(unlist(data[i,normid])),target=unlist(data[i,targetid]))
     }
@@ -354,10 +405,12 @@ mynormalize=function(data=allnormal_geneexp,targetid=1:48,normid=49:ncol(allnorm
 
 # plot(unlist(allnormal_methy[1,]))
 # points(unlist(allnormal_methy_norm[1,]),col="red")
-allnormal_methy_norm=mynormalize(data=allnormal_methy,targetid = 1:46,normid=47:60)
 allnormal_geneexp_norm=mynormalize(data=allnormal_geneexp)
-save(tcga_methy,hutch_methy,allnormal_methy,allnormal_geneexp_pos,hutch_ge_anno,tcga_ge_anno,hutch_geneexp,tcga_geneexp,
-     allnormal_methy_norm,allnormal_geneexp_norm,file="/fh/fast/stanford_j/Xiaoyu/QTL/data/allnormaldata.RData")
+allnormal_methy_norm=mynormalize(data=allnormal_methy,targetid = 1:46,normid=47:ncol(allnormal_methy))
+
+#methydata,geneexpdata: original TCGA data, hutch_intumorsamples: 14 patients have both tumor and normal samples, we only have genotype data for tumors
+save(hutch_intumorsamples,methydata,tcga_methy,hutch_methy,allnormal_methy,allnormal_geneexp_pos,hutch_ge_anno,tcga_ge_anno,normal_ge2,hutch_geneexp,geneexpdata,tcga_geneexp,
+     allnormal_geneexp_norm,allnormal_methy_norm,file="/fh/fast/stanford_j/Xiaoyu/QTL/data/allnormaldata.RData")
 
 load("/fh/fast/stanford_j/Xiaoyu/QTL/data/allnormaldata.RData")
 #check batch effect

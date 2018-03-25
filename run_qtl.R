@@ -190,3 +190,149 @@ do_qtl(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/gtex_highrisk_SN
        output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/gtex/eqtl_highrisk_cis",
        output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/gtex/eqtl_highrisk_trans",
        cutoff_cis=1,cutoff_trans=1,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/gtex/eqtl_highrisk.RData")
+
+
+#TBD
+snp_pca=read_qtl_input("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_GE_PCA.txt")
+snp_pca$id=paste0("snp_",snp_pca$id)
+pheno_peer=read_qtl_input("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_PEER.txt")
+sum(colnames(snp_pca)!=colnames(pheno_peer))
+#use top 3 snp_pca
+covariate=rbind(snp_pca[1:3,],pheno_peer)
+write_qtl_input(covariate,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_COVA_GE_PEER_used.txt")
+snpspos = read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt", header = TRUE, stringsAsFactors = FALSE)
+snp_pheno=read_qtl_input("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_highrisk_SNP_GE.txt")
+snp_pheno$id=snpspos$snp
+write_qtl_input(snp_pheno,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_highrisk_SNP_GE_updatename.txt")
+do_qtl(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_highrisk_SNP_GE_updatename.txt",
+       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+       phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE.txt",
+       phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_POS.txt",
+       covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_COVA_GE_PEER_used.txt",
+       output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_highrisk_peer_cis_all",
+       output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_highrisk_peer_trans_all",
+       cutoff_cis=1,cutoff_trans=1,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_highrisk_all.RData")
+
+do_qtl(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_GE.txt",
+       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_POS.txt",
+       phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE.txt",
+       phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_POS.txt",
+       covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_COVA_GE_PEER_used.txt",
+       output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_cis",
+       output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_trans",
+       cutoff_cis=1e-4,cutoff_trans=1e-8,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer.RData")
+# do_qtl(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_GE.txt",
+#        snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_POS.txt",
+#        phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE.txt",
+#        phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_POS.txt",
+#        covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_COVA_GE_PEER_used.txt",
+#        output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_cis",
+#        output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_trans",
+#        cutoff_cis=1,cutoff_trans=1e-7,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer.RData")
+#salloc -t 1-1 -n 24 mpirun -n 1 /app/easybuild/software/R/3.3.3-foss-2016b-fh1/bin/R --interactive
+library(Rmpi)
+njobs=mpi.universe.size() - 1
+print(njobs)
+mpi.spawn.Rslaves(nslaves=njobs,needlog = F)
+res=mpi_do_qtl_chr(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_GE.txt",
+                        snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_POS.txt",
+                        phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE.txt",
+                        phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_POS.txt",
+                        covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_COVA_GE_PEER_used.txt",
+                        output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_cis",
+                        output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_trans",
+                        cutoff_cis=1,cutoff_trans=1e-6,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer.RData")
+do_qtl_chrs(chrs=10:23,snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_GE.txt",
+               snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_POS.txt",
+               phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE.txt",
+               phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_POS.txt",
+               covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_COVA_GE_PEER_used.txt",
+               output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_cis",
+               output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_trans",
+               cutoff_cis=1,cutoff_trans=1e-6,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer.RData")
+
+
+
+#HUTCH GE gene
+snp_pca=read_qtl_input("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_GE_PCA.txt")
+snp_pca$id=paste0("snp_",snp_pca$id)
+pheno_peer=read_qtl_input("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene_PEER.txt")
+sum(colnames(snp_pca)!=colnames(pheno_peer))
+#use top 3 snp_pca
+covariate=rbind(snp_pca[1:3,],pheno_peer)
+write_qtl_input(covariate,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_COVA_GE_gene_PEER_used.txt")
+do_qtl(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_GE.txt",
+       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",
+       phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene.txt",
+       phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene_POS.txt",
+       covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_COVA_GE_gene_PEER_used.txt",
+       output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer_cis",
+       output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer_trans",
+       cutoff_cis=1e-4,cutoff_trans=1e-8,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer.RData")
+do_qtl(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_GE.txt",
+       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",
+       phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene.txt",
+       phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene_POS.txt",
+       covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_COVA_GE_gene_PEER_used.txt",
+       output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer_cis",
+       output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer_trans",
+       cutoff_cis=1,cutoff_trans=1e-7,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer.RData")
+
+do_qtl(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_GE.txt",
+       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+       phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene.txt",
+       phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene_POS.txt",
+       covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_COVA_GE_gene_PEER_used.txt",
+       output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_highrisk_peer_cis",
+       output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_highrisk_peer_trans",
+       cutoff_cis=1,cutoff_trans=1,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer_highrisk.RData")
+res=mpi_do_qtl_chr(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_GE.txt",
+                   snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",
+                   phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene.txt",
+                   phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene_POS.txt",
+                   covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_COVA_GE_gene_PEER_used.txt",
+                   output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer_cis",
+                   output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer_trans",
+                   cutoff_cis=1,cutoff_trans=1e-6,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer.RData")
+do_qtl_chrs(chrs=1:23,snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_GE.txt",
+                   snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",
+                   phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene.txt",
+                   phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene_POS.txt",
+                   covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_COVA_GE_gene_PEER_used.txt",
+                   output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer_cis",
+                   output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer_trans",
+                   cutoff_cis=1,cutoff_trans=1e-6,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer.RData")
+
+#TCGA normals
+snp_pca=read_qtl_input("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_normalsonly_SNP_GE_PCA.txt")
+snp_pca$id=paste0("snp_",snp_pca$id)
+pheno_peer=read_qtl_input("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_normalsonly_GE_PEER.txt")
+sum(colnames(snp_pca)!=colnames(pheno_peer))
+#use top 3 snp_pca
+covariate=rbind(snp_pca[1:3,],pheno_peer)
+write_qtl_input(covariate,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_normalsonly_COVA_GE_PEER_used.txt")
+do_qtl_chrs(chrs=1:23,snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_normalsonly_SNP_GE.txt",
+       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_normalsonly_SNP_POS.txt",
+       phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_normalsonly_GE.txt",
+       phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_normalsonly_GE_POS.txt",
+       covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_normalsonly_COVA_GE_PEER_used.txt",
+       output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/TCGA_normals/eqtl_normalsonly_peer_cis",
+       output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/TCGA_normals/eqtl_normalsonly_peer_trans",
+       cutoff_cis=1,cutoff_trans=1e-6,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TCGA_normals/eqtl_normalsonly_peer.RData")
+
+#TCGA tumors
+snp_pca=read_qtl_input("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumorsonly_SNP_GE_PCA.txt")
+snp_pca$id=paste0("snp_",snp_pca$id)
+pheno_peer=read_qtl_input("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumorsonly_GE_PEER.txt")
+sum(colnames(snp_pca)!=colnames(pheno_peer))
+#use top 3 snp_pca
+covariate=rbind(snp_pca[1:3,],pheno_peer)
+write_qtl_input(covariate,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumorsonly_COVA_GE_PEER_used.txt")
+do_qtl_chrs(chrs=1:23,snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumorsonly_SNP_GE.txt",
+       snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumorsonly_SNP_POS.txt",
+       phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumorsonly_GE.txt",
+       phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumorsonly_GE_POS.txt",
+       covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TCGA_tumorsonly_COVA_GE_PEER_used.txt",
+       output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/TCGA_tumors/eqtl_tumorsonly_peer_cis",
+       output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/TCGA_tumors/eqtl_tumorsonly_peer_trans",
+       cutoff_cis=1,cutoff_trans=1e-6,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TCGA_tumors/eqtl_tumorsonly_peer.RData")

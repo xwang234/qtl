@@ -1,97 +1,8 @@
 #!/usr/bin/env Rscript
 #filter SNP data
-library(data.table,lib.loc="~/R/x86_64-pc-linux-gnu-library/3.3")
+library(data.table)
 library(sas7bdat)
 source("functions.R")
-filterimput=function(chr,colscore=10,colmaf=9,scorecutoff=0.3,mafcutoff=0.05,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",
-                      prefix="icogs")
-{
-  library(data.table,lib.loc="~/R/x86_64-pc-linux-gnu-library/3.3")
-  #   #check the case of chr=3
-  #   tmp=anno_icogs[anno_icogs$Chrom==3,]
-  #   dim(tmp)
-  #   #[1] 14454    17, total 14454 SNPs
-  #   idx1=which(tmp$IlluminaName %in% infotable$rs_id[idxtype2])
-  #   idx2=which(tmp$IlluminaName %in% infotable$rs_id)
-  #   head(idx2[!idx2 %in% idx1])
-  #   head(tmp$IlluminaName[! tmp$IlluminaName %in% infotable$rs_id])
-  #   which(colnames(FHCRC_extra_demo.csv)=="rs2729054")
-  #   sum(is.na(FHCRC_extra_demo.csv[1:100,109426]))
-  #   missing=tmp$IlluminaName[! tmp$IlluminaName %in% infotable$rs_id]
-  #   missingidx=which(colnames(FHCRC_extra_demo.csv) %in% missing)
-  #   missingtable=FHCRC_extra_demo.csv[,c(1:2,missingidx)]
-  #   View(anno_icogs[anno_icogs$IlluminaName %in% missing,])
-  #   #it was found that 2% of genotyped SNPs were not shown in imputed table, check missingtable, may because MAF is small
-  #   idx=which(anno_icogs$IlluminaName %in% missing)
-  #   missingpos=data.frame(chr=anno_icogs$Chrom[idx],pos=anno_icogs$build37position[idx],rsid=anno_icogs$IlluminaName[idx])
-  #   head(infotable$position[infotable$position %in% missingpos$pos])
-  # #[1]  620311 1820234 1820234 7848731 8389201 8389201
-  #   #the part only have imputed data, not the genotyped data. They were included in the missing table, but we got the imputed data
-  #   
-  #   dim(missingpos)
-  #   #[1] 214   3, 214 seems missing when using probeid to map
-  #   idx=!missingpos$pos %in% infotable$position
-  #   sum(idx)
-  #   #[1] 168 not in infotable, they are completely missing
-  #   idx1=which(colnames(FHCRC_extra_demo.csv) %in% missingpos$rsid[idx])
-  #   missingtable=FHCRC_extra_demo.csv[,c(1:2,idx1)]
-  #   
-  #   idx1=which(colnames(FHCRC_extra_demo.csv) %in% missingpos$rsid[!idx])
-  #   length(idx1)
-  #   #[1] 46, they only have imputed data.
-  #   imputedonly=FHCRC_extra_demo.csv[,c(1:2,idx1)]
-  #   idx2=which(infotable$position %in% missingpos$pos[!idx])
-  #   #save the example file
-  #   save(missingtable,imputedonly,FHCRC_extra_demo.csv,file="FHCRC_extra_demo_chr3_missing_in_imputed.RData")
-  #   
-    print(chr) 
-    infotable=fread(infofiles[chr],fill = T)
-    infotable=as.data.frame(infotable)
-    imputetable=fread(imputfiles[chr])
-    imputetable=cbind(chr=chr,imputetable)
-    idxindel=grepl("INDEL",imputetable$V1)
-    if (sum(idxindel)>0) 
-    {
-      imputetable=imputetable[!idxindel,]
-      infotable=infotable[!idxindel,]
-    }
-    idxr2=which(infotable[,colscore]>scorecutoff)
-    idxmaf=which(infotable[,colmaf]>=mafcutoff & infotable[,colmaf]<=(1-mafcutoff))
-    idx=intersect(idxr2,idxmaf)
-    print(paste0("number of SNPs: ",length(idx)))
-    imputetable=imputetable[idx,]
-    infotable=infotable[idx,]
-    # #remove duplicates
-    # idx=which(duplicated(infotable$position))
-    # if (length(idx)>0)
-    # {
-    #   print(paste0("number of duplicates: ",length(idx)))
-    #   idx2rm=NULL
-    #   for (i in 1:length(idx))
-    #   {
-    #     if (i %% 1000==0) cat(i,"..")
-    #     idx1=which(infotable$position==infotable$position[idx[i]])
-    #     if ("imputation_r2" %in% colnames(infotable))
-    #     {
-    #       idx2=which.max(infotable$imputation_r2[idx1])
-    #     }else
-    #     {
-    #       idx2=which.max(infotable$imputation_r2_euro[idx1])
-    #     }
-    #     idx3=c(1:length(idx1))[!1:length(idx1) %in% idx2]
-    #     idx2rm=c(idx2rm,idx1[idx3])
-    #   }
-    # }
-    # idx2rm=unique(idx2rm)
-    # imputetable=imputetable[-idx2rm,]
-    # infotable=infotable[-idx2rm,]
-    # print(paste0("number of SNPs, after rm duplicates: ",nrow(infotable)))
-    save(imputetable,infotable,file=paste0(outfolder,"/",prefix,"_chr",chr,".RData")) 
-    #idxtype2=which(infotable$type==2) 0:only in reference; 2: in both reference and data; 3: only in data
-    
-    # quantile(infotable$exp_freq_a1[idxtype2],c(0,0.1,0.5,0.9,1))
-    return(0)
-}
 
 #test=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation3/SNP6_info_chr22.txt",header=T,sep=" ")
 folder="/fh/fast/stanford_j/iCOGS_imp_1KGv3_FHCRC/Data"
@@ -103,7 +14,7 @@ infofiles=paste0(folder1,"/",pre1,"chr",1:23,"_varid.txt")
 for (chr in 1:23)
 {
   cat(chr,"..")
-  filterimput(chr,colscore=10,colmaf=9,scorecutoff=0.3,mafcutoff=0.05,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",
+  filterimput(chr,imputfiles,infofiles,colscore=10,colmaf=9,scorecutoff=0.3,mafcutoff=0.05,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",
                        prefix="icogs")
 }
 
@@ -115,7 +26,7 @@ infofiles=paste0(folder1,"/",pre1,"chr",1:23,"_varid.txt")
 for (chr in 1:23)
 {
   cat(chr,"..")
-  filterimput(chr,colscore=10,colmaf=9,scorecutoff=0.3,mafcutoff=0.05,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",
+  filterimput(chr,imputfiles,infofiles,colscore=10,colmaf=9,scorecutoff=0.3,mafcutoff=0.05,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",
               prefix="icogs1")
 }
 
@@ -129,105 +40,179 @@ infofiles=paste0(folder1,"/",pre1,"chr",1:23,"_varid.txt")
 for (chr in 1:23)
 {
   cat(chr,"..")
-  filterimput(chr,colscore=10,colmaf=9,scorecutoff=0.3,mafcutoff=0.05,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",
+  filterimput(chr,imputfiles,infofiles,colscore=10,colmaf=9,scorecutoff=0.3,mafcutoff=0.05,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",
               prefix="onco")
 }
 
 
-#For TCGA normals
-folder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4"
-pre="SNP6_info_"
-pre1="SNP6_imputed_dosages_"
-imputfiles=paste0(folder,"/",pre1,"chr",1:23,".txt")
-file.exists(imputfiles)
-infofiles=paste0(folder,"/",pre,"chr",1:23,".txt")
-file.exists(infofiles)
-for (chr in 1:23)
-{
-  cat(chr,"..")
-  filterimput(chr,colscore=7,colmaf=6,scorecutoff=0.3,mafcutoff=0.05,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",
-              prefix="TCGA")
-}
+# #For TCGA normals
+# folder="/fh/fast/stanford_j/Xiaoyu/QTL/result/imputation4"
+# pre="SNP6_info_"
+# pre1="SNP6_imputed_dosages_"
+# imputfiles=paste0(folder,"/",pre1,"chr",1:23,".txt")
+# file.exists(imputfiles)
+# infofiles=paste0(folder,"/",pre,"chr",1:23,".txt")
+# file.exists(infofiles)
+# for (chr in 1:23)
+# {
+#   cat(chr,"..")
+#   filterimput(chr,colscore=7,colmaf=6,scorecutoff=0.3,mafcutoff=0.05,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",
+#               prefix="TCGA")
+# }
 
-#combine icogs and oncoarray
-#snp1:infotable_icogs,imputetable_icogs2
-#colimpstart first column for dosage in imputation file
-combine2imputedsnps=function(infotable_icogs,imputetable_icogs2,infotable_onco,imputetable_onco,colimpstart1=6,colimpstart2=6,outfolder,prefix)
+# #combine icogs and oncoarray
+# #snp1:infotable_icogs,imputetable_icogs2
+# #colimpstart first column for dosage in imputation file
+# combine2imputedsnps=function(infotable_icogs,imputetable_icogs2,infotable_onco,imputetable_onco,colimpstart1=6,colimpstart2=6,outfolder,prefix)
+# {
+#   infotable_icogs$overlap=infotable_onco$overlap=0
+#   imp_ref_icogs=imputetable_icogs2[which(infotable_icogs$snp_id == "---"),]
+#   imp_imp_icogs=imputetable_icogs2[which(infotable_icogs$snp_id != "---"),]
+#   imp_ref_onco=imputetable_onco[which(infotable_onco$snp_id == "---"),]
+#   imp_imp_onco=imputetable_onco[which(infotable_onco$snp_id != "---"),]
+#   info_ref_icogs=infotable_icogs[which(infotable_icogs$snp_id == "---"),]
+#   info_imp_icogs=infotable_icogs[which(infotable_icogs$snp_id != "---"),]
+#   info_ref_onco=infotable_onco[which(infotable_onco$snp_id == "---"),]
+#   info_imp_onco=infotable_onco[which(infotable_onco$snp_id != "---"),]
+#   #sum(info_ref_icogs$rs_id %in% info_ref_onco$rs_id)
+#   
+#   #SNPS were divided into two blocks in each data (refSNPs and nonrefSNPs) in order to deal with SNPs with the same positions
+#   #for SNPs imputed from reference, ref1 and ref2
+#   ref_rs_id=intersect(info_ref_icogs$rs_id,info_ref_onco$rs_id)
+#   idx=match(ref_rs_id,info_ref_icogs$rs_id)
+#   imp_block1_icogs=imp_ref_icogs[idx,]
+#   info_ref_icogs$overlap[idx]=1 # find overlap
+#   info_block1_icogs=info_ref_icogs[idx,]
+#   idx=match(ref_rs_id,info_ref_onco$rs_id)
+#   imp_block1_onco=imp_ref_onco[idx,]
+#   info_ref_onco$overlap[idx]=1 # find overlap
+#   info_block1_onco=info_ref_onco[idx,]
+#   
+#   #for SNPs imputed not from reference, imp1 and imp2
+#   #sum(info_imp_icogs$rs_id %in% info_imp_onco$rs_id)
+#   sum(info_imp_icogs$position %in% info_imp_onco$position)
+#   length(unique(info_imp_icogs$position))==nrow(info_imp_icogs)
+#   length(unique(info_imp_onco$position))==nrow(info_imp_onco)
+#   imp_com_pos=intersect(info_imp_icogs$position,info_imp_onco$position)
+#   idx=match(imp_com_pos,info_imp_icogs$position)
+#   imp_block2_icogs=imp_imp_icogs[idx,]
+#   info_block2_icogs=info_imp_icogs[idx,]
+#   info_imp_icogs$overlap[idx]=2
+#   idx=match(imp_com_pos,info_imp_onco$position)
+#   imp_block2_onco=imp_imp_onco[idx,]
+#   info_block2_onco=info_imp_onco[idx,]
+#   info_imp_onco$overlap[idx]=2
+#   
+#   #ref1 and imp2
+#   idx1=which(info_ref_icogs$overlap==0)
+#   idx2=which(info_imp_onco$overlap==0)
+#   sum(info_ref_icogs$position[idx1] %in% info_imp_onco$position[idx2])
+#   ref_imp_com_pos=intersect(info_ref_icogs$position[idx1],info_imp_onco$position[idx2])
+#   idx=match(ref_imp_com_pos,info_ref_icogs$position[idx1])
+#   imp_block3_icogs=imp_ref_icogs[idx1[idx],]
+#   info_block3_icogs=info_ref_icogs[idx1[idx],]
+#   info_ref_icogs$overlap[idx1[idx]]=3
+#   idx=match(ref_imp_com_pos,info_imp_onco$position[idx2])
+#   imp_block3_onco=imp_imp_onco[idx2[idx],]
+#   info_block3_onco=info_imp_onco[idx2[idx],]
+#   info_imp_onco$overlap[idx2[idx]]=3
+#   
+#   #imp1 and ref2
+#   idx1=which(info_imp_icogs$overlap==0)
+#   idx2=which(info_ref_onco$overlap==0)
+#   sum(info_imp_icogs$position[idx1] %in% info_ref_onco$position[idx2])
+#   imp_ref_com_pos=intersect(info_imp_icogs$position[idx1],info_ref_onco$position[idx2])
+#   idx=match(imp_ref_com_pos,info_imp_icogs$position[idx1])
+#   imp_block4_icogs=imp_imp_icogs[idx1[idx],]
+#   info_block4_icogs=info_imp_icogs[idx1[idx],]
+#   info_imp_icogs$overlap[idx1[idx]]=4
+#   idx=match(imp_ref_com_pos,info_ref_onco$position[idx2])
+#   imp_block4_onco=imp_ref_onco[idx2[idx],]
+#   info_block4_onco=info_ref_onco[idx2[idx],]
+#   info_ref_onco$overlap[idx2[idx]]=4
+#   
+#   imputetable=cbind(rbind(imp_block1_icogs,imp_block2_icogs,imp_block3_icogs,imp_block4_icogs),
+#                     rbind(imp_block1_onco[,colimpstart2:ncol(imp_block1_onco)],
+#                           imp_block2_onco[,colimpstart2:ncol(imp_block2_onco)],
+#                           imp_block3_onco[,colimpstart2:ncol(imp_block3_onco)],
+#                           imp_block4_onco[,colimpstart2:ncol(imp_block4_onco)]))
+#   #colnames(imputetable)[colimpstart1:(colimpstart+length(samplenames)-1)]=samplenames #samplenames in order
+#   infotable=rbind(info_block1_icogs,info_block2_icogs,info_block3_icogs,info_block4_icogs)
+#   save(imputetable,infotable,info_ref_icogs,info_ref_onco,info_imp_icogs,info_imp_onco,file=paste0(outfolder,"/",prefix,"_chr",chr,".RData")) 
+#   return(nrow(imputetable))
+# }
+# 
+# combineicogsonco=function(infolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",colimpstart1=6,colimpstart2=6,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/merged_imputation",prefix="HUTCH")
+# {
+#   #process sample studyno
+#   hutchclinical=read.sas7bdat("/fh/fast/stanford_j/Janet/alldata_2016dec20.sas7bdat")
+#   FHCRC_onco_map1=read.csv("/fh/fast/stanford_j/Oncoarray_2015Dec16/LinktoIDs.csv")
+#   ICOGID_studyno <- read.table("/fh/fast/stanford_j/COGS/iCOGID_Studyno.txt", header=TRUE,stringsAsFactors = F)
+#   imputeicogs_samples=read.table("/fh/fast/stanford_j/iCOGS_imp_1KGv3_FHCRC/Data/FHCRC_icogs_sample_order.txt") #use icogsid
+#   idx=match(imputeicogs_samples[,1],ICOGID_studyno$iCOGS_ID)
+#   which(is.na(idx)) #not have studyno
+#   idx1_icogs=which(is.na(idx)) #remove the column in data
+#   imputeicogs_samples=imputeicogs_samples[-idx1_icogs,]
+#   idx=match(imputeicogs_samples,ICOGID_studyno$iCOGS_ID)
+#   studyno_imputeicogs=ICOGID_studyno$studyno[idx]
+#   
+#   imputeicogs1_samples=read.table("/fh/fast/stanford_j/iCOGS_imp_1KGv3_FHCRC/Data/FHCRC_icogs_missing/FHCRC_missing_icogs_sample_order.txt")
+#   idx=match(imputeicogs1_samples[,1],ICOGID_studyno$iCOGS_ID)
+#   which(is.na(idx)) #not have studyno
+#   studyno_imputeicogs1=ICOGID_studyno$studyno[idx]
+#   idx2_icogs=which(!studyno_imputeicogs1 %in% hutchclinical$studyno[hutchclinical$race_==1]) #one African
+#   studyno_imputeicogs1=studyno_imputeicogs1[-idx2_icogs]
+#   
+#   imputeonco_samples=read.table("/fh/fast/stanford_j/Oncoarray_Imputed_2016Jan25/Data/FHCRC_sample_order.txt")
+#   idx=match(imputeonco_samples[,1],FHCRC_onco_map1$Onc_ID)
+#   which(is.na(idx)) #not have studyno
+#   studyno_onco=FHCRC_onco_map1$STUDYNO[idx]
+#   
+#   
+#   chrs=1:23
+#   numprobes=0
+#   for (chr in chrs)
+#   {
+#     print(chr)
+#     load(paste0(infolder,"/","icogs","_chr",chr,".RData"))
+#     imputetable=as.data.frame(imputetable)
+#     infotable=as.data.frame(infotable)
+#     imputetable_icogs=imputetable
+#     imputetable_icogs=imputetable_icogs[,-(idx1_icogs+5)]
+#     #colnames were missing in the RData
+#     colnames(imputetable_icogs)[colimpstart1:ncol(imputetable_icogs)]=studyno_imputeicogs
+#     infotable_icogs=infotable
+#     load(paste0(infolder,"/","icogs1","_chr",chr,".RData"))
+#     imputetable=as.data.frame(imputetable)
+#     infotable=as.data.frame(infotable)
+#     imputetable_icogs1=imputetable
+#     imputetable_icogs1=imputetable_icogs1[,-(5+idx2_icogs)]
+#     colnames(imputetable_icogs1)[colimpstart1:ncol(imputetable_icogs1)]=studyno_imputeicogs1
+#     infotable_icogs1=infotable
+#     if (sum(infotable_icogs$position==infotable_icogs1$position)<nrow(infotable_icogs)) warning("icogs files not consistent!")
+#     load(paste0(infolder,"/","onco","_chr",chr,".RData"))
+#     imputetable=as.data.frame(imputetable)
+#     infotable=as.data.frame(infotable)
+#     imputetable_onco=imputetable
+#     colnames(imputetable_onco)[colimpstart2:ncol(imputetable_onco)]=studyno_onco
+#     infotable_onco=infotable
+#     imputetable_icogs2=cbind(imputetable_icogs,imputetable_icogs1[,colimpstart1:ncol(imputetable_icogs1)])
+#     #samplenames=c(studyno_imputeicogs,studyno_imputeicogs1,studyno_onco)
+#     tmp=combine2imputedsnps(infotable_icogs,imputetable_icogs2,infotable_onco,imputetable_onco,colimpstart1=6,colimpstart2=6,outfolder,prefix)
+#     numprobes=numprobes+tmp  
+#   }
+#   print(paste0("number of probes: ",numprobes))
+# }
+
+#combine snps based on labels/not position
+combine2imputedsnps=function(infotable_icogs,imputetable_icogs2,infotable_onco,imputetable_onco,colimpstart2=6,outfolder,prefix)
 {
-  infotable_icogs$overlap=infotable_onco$overlap=0
-  imp_ref_icogs=imputetable_icogs2[which(infotable_icogs$snp_id == "---"),]
-  imp_imp_icogs=imputetable_icogs2[which(infotable_icogs$snp_id != "---"),]
-  imp_ref_onco=imputetable_onco[which(infotable_onco$snp_id == "---"),]
-  imp_imp_onco=imputetable_onco[which(infotable_onco$snp_id != "---"),]
-  info_ref_icogs=infotable_icogs[which(infotable_icogs$snp_id == "---"),]
-  info_imp_icogs=infotable_icogs[which(infotable_icogs$snp_id != "---"),]
-  info_ref_onco=infotable_onco[which(infotable_onco$snp_id == "---"),]
-  info_imp_onco=infotable_onco[which(infotable_onco$snp_id != "---"),]
-  #sum(info_ref_icogs$rs_id %in% info_ref_onco$rs_id)
-  
-  #SNPS were divided into two blocks in each data (refSNPs and nonrefSNPs) in order to deal with SNPs with the same positions
-  #for SNPs imputed from reference, ref1 and ref2
-  ref_rs_id=intersect(info_ref_icogs$rs_id,info_ref_onco$rs_id)
-  idx=match(ref_rs_id,info_ref_icogs$rs_id)
-  imp_block1_icogs=imp_ref_icogs[idx,]
-  info_ref_icogs$overlap[idx]=1 # find overlap
-  info_block1_icogs=info_ref_icogs[idx,]
-  idx=match(ref_rs_id,info_ref_onco$rs_id)
-  imp_block1_onco=imp_ref_onco[idx,]
-  info_ref_onco$overlap[idx]=1 # find overlap
-  info_block1_onco=info_ref_onco[idx,]
-  
-  #for SNPs imputed not from reference, imp1 and imp2
-  #sum(info_imp_icogs$rs_id %in% info_imp_onco$rs_id)
-  sum(info_imp_icogs$position %in% info_imp_onco$position)
-  length(unique(info_imp_icogs$position))==nrow(info_imp_icogs)
-  length(unique(info_imp_onco$position))==nrow(info_imp_onco)
-  imp_com_pos=intersect(info_imp_icogs$position,info_imp_onco$position)
-  idx=match(imp_com_pos,info_imp_icogs$position)
-  imp_block2_icogs=imp_imp_icogs[idx,]
-  info_block2_icogs=info_imp_icogs[idx,]
-  info_imp_icogs$overlap[idx]=2
-  idx=match(imp_com_pos,info_imp_onco$position)
-  imp_block2_onco=imp_imp_onco[idx,]
-  info_block2_onco=info_imp_onco[idx,]
-  info_imp_onco$overlap[idx]=2
-  
-  #ref1 and imp2
-  idx1=which(info_ref_icogs$overlap==0)
-  idx2=which(info_imp_onco$overlap==0)
-  sum(info_ref_icogs$position[idx1] %in% info_imp_onco$position[idx2])
-  ref_imp_com_pos=intersect(info_ref_icogs$position[idx1],info_imp_onco$position[idx2])
-  idx=match(ref_imp_com_pos,info_ref_icogs$position[idx1])
-  imp_block3_icogs=imp_ref_icogs[idx1[idx],]
-  info_block3_icogs=info_ref_icogs[idx1[idx],]
-  info_ref_icogs$overlap[idx1[idx]]=3
-  idx=match(ref_imp_com_pos,info_imp_onco$position[idx2])
-  imp_block3_onco=imp_imp_onco[idx2[idx],]
-  info_block3_onco=info_imp_onco[idx2[idx],]
-  info_imp_onco$overlap[idx2[idx]]=3
-  
-  #imp1 and ref2
-  idx1=which(info_imp_icogs$overlap==0)
-  idx2=which(info_ref_onco$overlap==0)
-  sum(info_imp_icogs$position[idx1] %in% info_ref_onco$position[idx2])
-  imp_ref_com_pos=intersect(info_imp_icogs$position[idx1],info_ref_onco$position[idx2])
-  idx=match(imp_ref_com_pos,info_imp_icogs$position[idx1])
-  imp_block4_icogs=imp_imp_icogs[idx1[idx],]
-  info_block4_icogs=info_imp_icogs[idx1[idx],]
-  info_imp_icogs$overlap[idx1[idx]]=4
-  idx=match(imp_ref_com_pos,info_ref_onco$position[idx2])
-  imp_block4_onco=imp_ref_onco[idx2[idx],]
-  info_block4_onco=info_ref_onco[idx2[idx],]
-  info_ref_onco$overlap[idx2[idx]]=4
-  
-  imputetable=cbind(rbind(imp_block1_icogs,imp_block2_icogs,imp_block3_icogs,imp_block4_icogs),
-                    rbind(imp_block1_onco[,colimpstart2:ncol(imp_block1_onco)],
-                          imp_block2_onco[,colimpstart2:ncol(imp_block2_onco)],
-                          imp_block3_onco[,colimpstart2:ncol(imp_block3_onco)],
-                          imp_block4_onco[,colimpstart2:ncol(imp_block4_onco)]))
-  #colnames(imputetable)[colimpstart1:(colimpstart+length(samplenames)-1)]=samplenames #samplenames in order
-  infotable=rbind(info_block1_icogs,info_block2_icogs,info_block3_icogs,info_block4_icogs)
-  save(imputetable,infotable,info_ref_icogs,info_ref_onco,info_imp_icogs,info_imp_onco,file=paste0(outfolder,"/",prefix,"_chr",chr,".RData")) 
+  comrs_id=intersect(infotable_icogs$rs_id,infotable_onco$rs_id)
+  idx1=match(comrs_id,infotable_icogs$rs_id)
+  infotable=infotable_icogs[idx1,]
+  idx2=match(comrs_id,infotable_onco$rs_id)
+  imputetable=cbind(imputetable_icogs2[idx1,],imputetable_onco[idx2,colimpstart2:ncol(imputetable_onco)])
+  save(imputetable,infotable,file=paste0(outfolder,"/",prefix,"_chr",chr,".RData"))
   return(nrow(imputetable))
 }
 
@@ -244,20 +229,20 @@ combineicogsonco=function(infolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filter
   imputeicogs_samples=imputeicogs_samples[-idx1_icogs,]
   idx=match(imputeicogs_samples,ICOGID_studyno$iCOGS_ID)
   studyno_imputeicogs=ICOGID_studyno$studyno[idx]
-  
+
   imputeicogs1_samples=read.table("/fh/fast/stanford_j/iCOGS_imp_1KGv3_FHCRC/Data/FHCRC_icogs_missing/FHCRC_missing_icogs_sample_order.txt")
   idx=match(imputeicogs1_samples[,1],ICOGID_studyno$iCOGS_ID)
   which(is.na(idx)) #not have studyno
   studyno_imputeicogs1=ICOGID_studyno$studyno[idx]
   idx2_icogs=which(!studyno_imputeicogs1 %in% hutchclinical$studyno[hutchclinical$race_==1]) #one African
   studyno_imputeicogs1=studyno_imputeicogs1[-idx2_icogs]
-  
+
   imputeonco_samples=read.table("/fh/fast/stanford_j/Oncoarray_Imputed_2016Jan25/Data/FHCRC_sample_order.txt")
   idx=match(imputeonco_samples[,1],FHCRC_onco_map1$Onc_ID)
   which(is.na(idx)) #not have studyno
   studyno_onco=FHCRC_onco_map1$STUDYNO[idx]
-  
-  
+
+
   chrs=1:23
   numprobes=0
   for (chr in chrs)
@@ -287,53 +272,53 @@ combineicogsonco=function(infolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filter
     infotable_onco=infotable
     imputetable_icogs2=cbind(imputetable_icogs,imputetable_icogs1[,colimpstart1:ncol(imputetable_icogs1)])
     #samplenames=c(studyno_imputeicogs,studyno_imputeicogs1,studyno_onco)
-    tmp=combine2imputedsnps(infotable_icogs,imputetable_icogs2,infotable_onco,imputetable_onco,colimpstart1=6,colimpstart2=6,outfolder,prefix)
-    numprobes=numprobes+tmp  
+    tmp=combine2imputedsnps(infotable_icogs,imputetable_icogs2,infotable_onco,imputetable_onco,colimpstart2=6,outfolder,prefix)
+    numprobes=numprobes+tmp
   }
   print(paste0("number of probes: ",numprobes))
 }
 
-#SNP for normal samples
-#for TCGA sample names, hutch normal sample names
-load("/fh/fast/stanford_j/Xiaoyu/QTL/data/allnormaldata.RData")
-tcga_geneexp_samples=colnames(tcga_geneexp)
-tcga_methylation_samples=colnames(tcga_methy)
-tcga_genotype_samples=unique(c(colnames(tcga_geneexp),colnames(tcga_methy))) #after removing seminal vescile samples,it is different from colnames(genotypedata)
-hutch_normal_samples=colnames(hutch_geneexp)
-normal_samples=c(hutch_normal_samples,tcga_genotype_samples)
-normal_geneexp_samples=c(hutch_normal_samples,tcga_geneexp_samples)
-normal_methylation_samples=c(hutch_normal_samples,tcga_methylation_samples)
-#load("/fh/fast/stanford_j/Xiaoyu/QTL/data/TCGAnormals.RData") #the ge/me data were not normalized #it includes seminal vescile samples! the first 67 columns of genotypedata in dosage files
-load("/fh/fast/stanford_j/Xiaoyu/QTL/data/allnormaldata.RData")
-combinenormalsnps=function(infolder1="/fh/fast/stanford_j/Xiaoyu/QTL/result/merged_imputation",
-                           infolder2="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",
-                           colimpstart=2,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/merged_imputation",prefix="NORMAL")
-{
-  chrs=1:23
-  numprobes=0
-  for (chr in chrs)
-  {
-    print(chr)
-    load(paste0(infolder1,"/","HUTCH","_chr",chr,".RData"))
-    imputetable=as.data.frame(imputetable)
-    infotable=as.data.frame(infotable)
-    #hutch normals
-    idx=match(hutch_normal_samples,colnames(imputetable))
-    imputetable_hutch=imputetable[,c(1:5,idx)]
-    infotable_hutch=infotable
-    load(paste0(infolder2,"/","TCGA","_chr",chr,".RData"))
-    imputetable=as.data.frame(imputetable)
-    colnames(imputetable)[2:(1+ncol(genotypedata))]=colnames(genotypedata)
-    imputetable_tcga=imputetable
-    infotable_tcga=infotable
-    #samplenames=c(hutch_normal_samples,colnames(genotypedata))
-    #colimpstart = 2 the data in second imp starts from Column2
-    tmp=combine2imputedsnps(infotable_icogs=infotable_hutch,imputetable_icogs2=imputetable_hutch,infotable_onco=infotable_tcga,imputetable_onco=imputetable_tcga,colimpstart1 = 6,colimpstart2 = 2,outfolder,prefix)
-    numprobes=numprobes+tmp  
-  }
-  print(paste0("number of probes: ",numprobes))
-}
-  
+# #SNP for normal samples
+# #for TCGA sample names, hutch normal sample names
+# load("/fh/fast/stanford_j/Xiaoyu/QTL/data/allnormaldata.RData")
+# tcga_geneexp_samples=colnames(tcga_geneexp)
+# tcga_methylation_samples=colnames(tcga_methy)
+# tcga_genotype_samples=unique(c(colnames(tcga_geneexp),colnames(tcga_methy))) #after removing seminal vescile samples,it is different from colnames(genotypedata)
+# hutch_normal_samples=colnames(hutch_geneexp)
+# normal_samples=c(hutch_normal_samples,tcga_genotype_samples)
+# normal_geneexp_samples=c(hutch_normal_samples,tcga_geneexp_samples)
+# normal_methylation_samples=c(hutch_normal_samples,tcga_methylation_samples)
+# #load("/fh/fast/stanford_j/Xiaoyu/QTL/data/TCGAnormals.RData") #the ge/me data were not normalized #it includes seminal vescile samples! the first 67 columns of genotypedata in dosage files
+# load("/fh/fast/stanford_j/Xiaoyu/QTL/data/allnormaldata.RData")
+# combinenormalsnps=function(infolder1="/fh/fast/stanford_j/Xiaoyu/QTL/result/merged_imputation",
+#                            infolder2="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",
+#                            colimpstart=2,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/merged_imputation",prefix="NORMAL")
+# {
+#   chrs=1:23
+#   numprobes=0
+#   for (chr in chrs)
+#   {
+#     print(chr)
+#     load(paste0(infolder1,"/","HUTCH","_chr",chr,".RData"))
+#     imputetable=as.data.frame(imputetable)
+#     infotable=as.data.frame(infotable)
+#     #hutch normals
+#     idx=match(hutch_normal_samples,colnames(imputetable))
+#     imputetable_hutch=imputetable[,c(1:5,idx)]
+#     infotable_hutch=infotable
+#     load(paste0(infolder2,"/","TCGA","_chr",chr,".RData"))
+#     imputetable=as.data.frame(imputetable)
+#     colnames(imputetable)[2:(1+ncol(genotypedata))]=colnames(genotypedata)
+#     imputetable_tcga=imputetable
+#     infotable_tcga=infotable
+#     #samplenames=c(hutch_normal_samples,colnames(genotypedata))
+#     #colimpstart = 2 the data in second imp starts from Column2
+#     tmp=combine2imputedsnps(infotable_icogs=infotable_hutch,imputetable_icogs2=imputetable_hutch,infotable_onco=infotable_tcga,imputetable_onco=imputetable_tcga,colimpstart1 = 6,colimpstart2 = 2,outfolder,prefix)
+#     numprobes=numprobes+tmp  
+#   }
+#   print(paste0("number of probes: ",numprobes))
+# }
+#   
 
   
 hutchclinical=read.sas7bdat("/fh/fast/stanford_j/Janet/alldata_2016dec20.sas7bdat")
@@ -375,19 +360,20 @@ genereate_SNPfiles=function(genexp_samples=hutch_geneexp_samples,methylation_sam
     if (chr==chrs[1])
     {
       fwrite(SNP_GE,file=paste0(outfoler,"/",prefix,"_SNP_GE.txt"),col.names = T,row.names = F,sep="\t")
-      fwrite(NP_ME,file=paste0(outfoler,"/",prefix,"_SNP_ME.txt"),col.names = T,row.names = F,sep="\t")
+      fwrite(SNP_ME,file=paste0(outfoler,"/",prefix,"_SNP_ME.txt"),col.names = T,row.names = F,sep="\t")
       fwrite(SNP_POS,file=paste0(outfoler,"/",prefix,"_SNP_POS.txt"),col.names = T,row.names = F,sep="\t")
     }else
     {
       fwrite(SNP_GE,file=paste0(outfoler,"/",prefix,"_SNP_GE.txt"),col.names = F,row.names = F,sep="\t",append = T)
-      fwrite(NP_ME,file=paste0(outfoler,"/",prefix,"_SNP_ME.txt"),col.names = F,row.names = F,sep="\t",append = T)
+      fwrite(SNP_ME,file=paste0(outfoler,"/",prefix,"_SNP_ME.txt"),col.names = F,row.names = F,sep="\t",append = T)
       fwrite(SNP_POS,file=paste0(outfoler,"/",prefix,"_SNP_POS.txt"),col.names = F,row.names = F,sep="\t",append = T)
     }
   }
-  
 }
+
 #for HUTCH
 rdfiles=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/merged_imputation/HUTCH_chr",1:23,".RData")
+genereate_SNPfiles(rdfiles=rdfiles)
 #SNP_PCA
 # bigpca=function(dat=HUTCH_SNP_GE[,2:ncol(HUTCH_SNP_GE)],prefix=1)
 # {
@@ -442,22 +428,22 @@ write.table(HUTCH_SNP_ME_PCA,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_inp
 rm(HUTCH_SNP_ME)
 
 
-#for NORMAL
-rdfiles=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/merged_imputation/NORMAL_chr",1:23,".RData")
-genereate_SNPfiles(genexp_samples=normal_geneexp_samples,methylation_samples=normal_methylation_samples,rdfiles,
-                            colrsid=5,colpos=6,outfoler="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input",prefix="NORMAL")
-#SNP_PCA
-NORMAL_SNP_GE=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_GE.txt",header=T,sep="\t",drop="id")
-# NORMAL_SNP_GE_PCA=bigpca(dat=t(NORMAL_SNP_GE)])
-NORMAL_SNP_GE_PCA=pca(dat=NORMAL_SNP_GE,check=T,bigpca = T,numpc=15)
-write.table(NORMAL_SNP_GE_PCA,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_GE_PCA.txt",col.names = T,row.names = F,sep="\t",quote=F)
-rm(NORMAL_SNP_GE)
-NORMAL_SNP_ME=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_ME.txt",header=T,sep="\t",drop="id")
-#NORMAL_SNP_ME=as.data.frame(NORMAL_SNP_ME)
-#NORMAL_SNP_ME_PCA=bigpca(dat=t(NORMAL_SNP_ME))
-NORMAL_SNP_ME_PCA=pca(dat=NORMAL_SNP_ME,check=T,bigpca = T,numpc=15)
-write.table(NORMAL_SNP_ME_PCA,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_ME_PCA.txt",col.names = T,row.names = F,sep="\t",quote=F)
-rm(NORMAL_SNP_ME)
+# #for NORMAL
+# rdfiles=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/merged_imputation/NORMAL_chr",1:23,".RData")
+# genereate_SNPfiles(genexp_samples=normal_geneexp_samples,methylation_samples=normal_methylation_samples,rdfiles,
+#                             colrsid=5,colpos=6,outfoler="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input",prefix="NORMAL")
+# #SNP_PCA
+# NORMAL_SNP_GE=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_GE.txt",header=T,sep="\t",drop="id")
+# # NORMAL_SNP_GE_PCA=bigpca(dat=t(NORMAL_SNP_GE)])
+# NORMAL_SNP_GE_PCA=pca(dat=NORMAL_SNP_GE,check=T,bigpca = T,numpc=15)
+# write.table(NORMAL_SNP_GE_PCA,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_GE_PCA.txt",col.names = T,row.names = F,sep="\t",quote=F)
+# rm(NORMAL_SNP_GE)
+# NORMAL_SNP_ME=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_ME.txt",header=T,sep="\t",drop="id")
+# #NORMAL_SNP_ME=as.data.frame(NORMAL_SNP_ME)
+# #NORMAL_SNP_ME_PCA=bigpca(dat=t(NORMAL_SNP_ME))
+# NORMAL_SNP_ME_PCA=pca(dat=NORMAL_SNP_ME,check=T,bigpca = T,numpc=15)
+# write.table(NORMAL_SNP_ME_PCA,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_SNP_ME_PCA.txt",col.names = T,row.names = F,sep="\t",quote=F)
+# rm(NORMAL_SNP_ME)
 
 tcgaclinical=read.table("/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/clinical/dc99e120-0159-4470-ab3c-6581032935e9/nationwidechildrens.org_clinical_patient_prad.txt",
                         skip=1,stringsAsFactors = F,header=T,sep="\t")
@@ -487,6 +473,45 @@ tmp=tmp[,-1]
 tmp1=t(scale(t(tmp)))
 tmp1=cbind.data.frame(id=rownames(tmp1),tmp1)
 write.table(tmp1,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE.txt",row.names = F,sep="\t",quote=F)
+#form GE at gene level
+load("/fh/fast/stanford_j/Xiaoyu/QTL/data/Geneexp_map_TCGA_HUTCH.RData")
+sum(is.na(hutch_ge_anno$Symbol)) #0
+uniq_symbol=unique(hutch_ge_anno$Symbol)
+length(uniq_symbol) #[1] 18077
+GE2=data.frame(matrix(NA,nrow=length(uniq_symbol),ncol=ncol(GE1)-1))
+colnames(GE2)=colnames(GE1)[2:ncol(GE1)]
+GE2_pos=data.frame(matrix(NA,nrow=length(uniq_symbol),ncol=4))
+colnames(GE2_pos)=c("geneid","chr","s1","s2")
+for (i in 1:length(uniq_symbol))
+{
+  if (i%%1000==0) cat(i,'..')
+  idx=which(hutch_ge_anno$Symbol==uniq_symbol[i])
+  if (length(idx)==1)
+  {
+    GE2[i,]=GE1[idx,2:ncol(GE1)]
+    GE2_pos$geneid[i]=hutch_ge_anno$Symbol[idx]
+    GE2_pos$chr[i]=hutch_ge_anno$Chromosome[idx]
+    GE2_pos$s1[i]=hutch_ge_anno$start[idx]
+    GE2_pos$s2[i]=hutch_ge_anno$end[idx]
+  }else
+  {
+    GE2[i,]=colMeans(GE1[idx,2:ncol(GE1)])
+    GE2_pos$geneid[i]=hutch_ge_anno$Symbol[idx][1]
+    GE2_pos$chr[i]=hutch_ge_anno$Chromosome[idx][1]
+    GE2_pos$s1[i]=min(hutch_ge_anno$start[idx])
+    GE2_pos$s2[i]=max(hutch_ge_anno$end[idx])
+  }
+}
+GE2=t(scale(t(GE2)))
+idx=match(hutch_geneexp_samples,colnames(GE2))
+GE2=GE2[,idx]
+tmp1=cbind.data.frame(id=uniq_symbol,GE2)
+write.table(tmp1,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene.txt",row.names = F,sep="\t",quote=F)
+write.table(GE2_pos,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene_POS.txt",row.names = F,sep="\t",quote=F)
+
+HUTCH_GE_gene_PEER=peer_number(dat=GE2) #15,0.524
+write.table(HUTCH_GE_gene_PEER,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene_PEER.txt",col.names = T,row.names = F,sep="\t",quote=F)
+
 #------
 
 HUTCH_GE_norm=normalizeGE(dat=HUTCH_GE[,2:ncol(HUTCH_GE)])
@@ -519,54 +544,54 @@ system("cp /fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/imputation/GE_POS.t
 system("cp /fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/imputation/ME_POS.txt /fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt")
 
 
-#GE/ME NORMAL
-idx=match(normal_geneexp_samples,colnames(allnormal_geneexp_norm))
-tmp=cbind.data.frame(id=allnormal_geneexp_pos$geneid,allnormal_geneexp_norm[,idx])
-write.table(tmp,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE.txt",col.names = T,row.names = F,sep="\t",quote=F)
-write.table(allnormal_geneexp_pos,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_POS.txt",col.names = T,row.names = F,sep="\t",quote=F)
-NORMAL_GE=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE.txt",header=T,sep="\t")
-NORMAL_GE_PCA=pca(dat=NORMAL_GE[,2:ncol(NORMAL_GE)])#26,0.831
-write.table(NORMAL_GE_PCA,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_PCA.txt",row.names = F,sep="\t",quote=F)
-NORMAL_GE_norm=normalizeGE(dat=NORMAL_GE[,2:ncol(NORMAL_GE)])
-NORMAL_GE_norm=cbind.data.frame(id=NORMAL_GE$id,NORMAL_GE_norm)
-write.table(NORMAL_GE_norm,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_norm.txt",row.names = F,sep="\t",quote=F)
-NORMAL_GE_norm_PCA=pca(dat=NORMAL_GE_norm[,2:ncol(NORMAL_GE_norm)])#27,0.825
-write.table(NORMAL_GE_norm_PCA,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_norm_PCA.txt",row.names = F,sep="\t",quote=F)
-#peer factors
-NORMAL_GE_PEER=peer(dat=NORMAL_GE[,2:ncol(NORMAL_GE)])#14,0.573
-write.table(NORMAL_GE_PEER,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_PEER.txt",col.names = T,row.names = F,sep="\t",quote=F)
-NORMAL_GE_norm_PEER=peer(dat=NORMAL_GE_norm[,2:ncol(NORMAL_GE_norm)])#14,0.577
-write.table(NORMAL_GE_norm_PEER,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_norm_PEER.txt",col.names = T,row.names = F,sep="\t",quote=F)
-
-
-#remove all NA rows of me
-numNA=rep(0,nrow(allnormal_methy_norm))
-for (i in 1:nrow(allnormal_methy_norm))
-{
-  if (i %% 10000==0) cat(i,'..')
-  numNA[i]=sum(is.na(allnormal_methy_norm[i,1:46]))
-}
-idx=which(numNA<46)
-allnormal_methy_norm1=allnormal_methy_norm[idx,]
-sum(is.na(allnormal_methy_norm1))
-#fill NA
-library(impute)
-tmp=impute.knn(as.matrix(allnormal_methy_norm1))
-allnormal_methy_norm1=as.data.frame(tmp$data)
-sum(is.na(allnormal_methy_norm1))
-idx1=match(normal_methylation_samples,colnames(allnormal_methy_norm1))
-tmp=cbind.data.frame(id=rownames(allnormal_methy_norm1),allnormal_methy_norm1[,idx1])
-write.table(tmp,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME.txt",col.names = T,row.names = F,sep="\t",quote=F)
-NORMAL_ME=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME.txt",header=T,sep="\t")
-NORMAL_ME_PCA=pca(dat=NORMAL_ME[,2:ncol(NORMAL_ME)])#26,0.775
-write.table(NORMAL_ME_PCA,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME_PCA.txt",col.names = T,row.names = F,sep="\t",quote=F)
-
-tmp1=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt")
-tmp1=as.data.frame(tmp1)
-sum(rownames(allnormal_methy_norm)==tmp1$geneid)
-#[1] 478998 they are the same HUTCH_ME_POS is NORMAL_ME_POS
-write.table(tmp1[idx,],file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME_POS.txt",col.names = T,row.names = F,sep="\t",quote=F)
-
+# #GE/ME NORMAL
+# idx=match(normal_geneexp_samples,colnames(allnormal_geneexp_norm))
+# tmp=cbind.data.frame(id=allnormal_geneexp_pos$geneid,allnormal_geneexp_norm[,idx])
+# write.table(tmp,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE.txt",col.names = T,row.names = F,sep="\t",quote=F)
+# write.table(allnormal_geneexp_pos,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_POS.txt",col.names = T,row.names = F,sep="\t",quote=F)
+# NORMAL_GE=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE.txt",header=T,sep="\t")
+# NORMAL_GE_PCA=pca(dat=NORMAL_GE[,2:ncol(NORMAL_GE)])#26,0.831
+# write.table(NORMAL_GE_PCA,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_PCA.txt",row.names = F,sep="\t",quote=F)
+# NORMAL_GE_norm=normalizeGE(dat=NORMAL_GE[,2:ncol(NORMAL_GE)])
+# NORMAL_GE_norm=cbind.data.frame(id=NORMAL_GE$id,NORMAL_GE_norm)
+# write.table(NORMAL_GE_norm,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_norm.txt",row.names = F,sep="\t",quote=F)
+# NORMAL_GE_norm_PCA=pca(dat=NORMAL_GE_norm[,2:ncol(NORMAL_GE_norm)])#27,0.825
+# write.table(NORMAL_GE_norm_PCA,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_norm_PCA.txt",row.names = F,sep="\t",quote=F)
+# #peer factors
+# NORMAL_GE_PEER=peer(dat=NORMAL_GE[,2:ncol(NORMAL_GE)])#14,0.573
+# write.table(NORMAL_GE_PEER,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_PEER.txt",col.names = T,row.names = F,sep="\t",quote=F)
+# NORMAL_GE_norm_PEER=peer(dat=NORMAL_GE_norm[,2:ncol(NORMAL_GE_norm)])#14,0.577
+# write.table(NORMAL_GE_norm_PEER,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_GE_norm_PEER.txt",col.names = T,row.names = F,sep="\t",quote=F)
+# 
+# 
+# #remove all NA rows of me
+# numNA=rep(0,nrow(allnormal_methy_norm))
+# for (i in 1:nrow(allnormal_methy_norm))
+# {
+#   if (i %% 10000==0) cat(i,'..')
+#   numNA[i]=sum(is.na(allnormal_methy_norm[i,1:46]))
+# }
+# idx=which(numNA<46)
+# allnormal_methy_norm1=allnormal_methy_norm[idx,]
+# sum(is.na(allnormal_methy_norm1))
+# #fill NA
+# library(impute)
+# tmp=impute.knn(as.matrix(allnormal_methy_norm1))
+# allnormal_methy_norm1=as.data.frame(tmp$data)
+# sum(is.na(allnormal_methy_norm1))
+# idx1=match(normal_methylation_samples,colnames(allnormal_methy_norm1))
+# tmp=cbind.data.frame(id=rownames(allnormal_methy_norm1),allnormal_methy_norm1[,idx1])
+# write.table(tmp,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME.txt",col.names = T,row.names = F,sep="\t",quote=F)
+# NORMAL_ME=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME.txt",header=T,sep="\t")
+# NORMAL_ME_PCA=pca(dat=NORMAL_ME[,2:ncol(NORMAL_ME)])#26,0.775
+# write.table(NORMAL_ME_PCA,file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME_PCA.txt",col.names = T,row.names = F,sep="\t",quote=F)
+# 
+# tmp1=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_ME_POS.txt")
+# tmp1=as.data.frame(tmp1)
+# sum(rownames(allnormal_methy_norm)==tmp1$geneid)
+# #[1] 478998 they are the same HUTCH_ME_POS is NORMAL_ME_POS
+# write.table(tmp1[idx,],file="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/NORMAL_ME_POS.txt",col.names = T,row.names = F,sep="\t",quote=F)
+# 
 
 
 formcovariates=function(ge=normal_ge,me=normal_methy,clinical=clinical,sampleid_ge=NULL,sampleid_me=NULL,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input",prefix="FHnormals")

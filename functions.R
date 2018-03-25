@@ -2,6 +2,41 @@
 library(data.table,lib.loc="~/R/x86_64-pc-linux-gnu-library/3.3")
 library(GenomicRanges)
 
+#filter impute2 result based on MAF and score
+filterimput=function(chr,imputfiles,infofiles,colscore=7,colmaf=6,scorecutoff=0.3,mafcutoff=0.05,outfolder="/fh/fast/stanford_j/Xiaoyu/QTL/result/filtered_imputation",
+                     prefix="TBD")
+{
+  library(data.table)
+  print(chr) 
+  infotable=fread(infofiles[chr],fill = T)
+  infotable=as.data.frame(infotable)
+  imputetable=fread(imputfiles[chr])
+  imputetable=cbind(chr=chr,imputetable)
+  idxr2=which(infotable[,colscore]>scorecutoff)
+  idxmaf=which(infotable[,colmaf]>=mafcutoff & infotable[,colmaf]<=(1-mafcutoff))
+  idx=intersect(idxr2,idxmaf)
+  print(paste0("number of SNPs: ",length(idx)))
+  imputetable=imputetable[idx,]
+  infotable=infotable[idx,]
+  #make the snp names consistent, in the form of rs375136935:255633:A:G or 1:559480:C:T, so we can combine imputed SNPs in two studies
+  idx_genotyped=which(infotable$snp_id!="---")
+  idx_rs_genotyped=which(infotable$snp_id !="---" & grepl("^rs",infotable$rs_id))
+  infotable$rs_id[idx_rs_genotyped]=paste0(infotable$rs_id[idx_rs_genotyped],":",infotable$position[idx_rs_genotyped],":",infotable$a0[idx_rs_genotyped],":",infotable$a1[idx_rs_genotyped])
+  idx_nonrs_genotyped=which(infotable$snp_id !="---" & !grepl("^rs",infotable$rs_id))
+  infotable$rs_id[idx_nonrs_genotyped]=paste0(chr,":",infotable$position[idx_nonrs_genotyped],":",infotable$a0[idx_nonrs_genotyped],":",infotable$a1[idx_nonrs_genotyped])
+  idxduplicated=which(duplicated(infotable$rs_id))
+  if (length(idxduplicated)>0)
+  {
+    imputetable=imputetable[-idxduplicated,]
+    infotable=infotable[-idxduplicated,]
+  }
+  save(imputetable,infotable,file=paste0(outfolder,"/",prefix,"_chr",chr,".RData")) 
+  #idxtype2=which(infotable$type==2) 0:only in reference; 2: in both reference and data; 3: only in data
+  
+  # quantile(infotable$exp_freq_a1[idxtype2],c(0,0.1,0.5,0.9,1))
+  return(0)
+}
+
 removeconstrows=function(dat)
 {
   idxconst=rep(F,nrow(dat))
@@ -320,6 +355,102 @@ do_qtl=function(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_S
   save(qtl,file=recordfile)
 }
 
+do_qtl_chr=function(chr=1,snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_GE.txt",
+                    snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_POS.txt",
+                    phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE.txt",
+                    phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_POS.txt",
+                    covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_COVA_GE_PEER_used.txt",
+                    output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_cis",
+                    output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_trans",
+                    cutoff_cis=1,cutoff_trans=1e-6,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer.RData")
+{
+  #generate snp files for the chr
+  
+  chrsnpfile=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/chr/",basename(snpfile),".chr",chr)
+  chrsnpposfile=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/chr/",basename(snpposfile),".chr",chr)
+  chroutput_cis=paste0(dirname(output_cis),"/",basename(output_cis),".chr",chr)
+  chroutput_trans=paste0(dirname(output_trans),"/",basename(output_trans),".chr",chr)
+  chrrecordfile=paste0(dirname(recordfile),"/",basename(recordfile),".chr",chr)
+  do_qtl(snpfile=chrsnpfile,
+         snpposfile=chrsnpposfile,
+         phenotypefile=phenotypefile,
+         phenotypeposfile=phenotypeposfile,
+         covariatefile=covariatefile,
+         output_cis=chroutput_cis,
+         output_trans=chroutput_trans,
+         cutoff_cis=cutoff_cis,cutoff_trans=cutoff_trans,recordfile=chrrecordfile)
+  return(0)
+  
+}
+
+mpi_do_qtl_chr=function(snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_GE.txt",
+                        snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_POS.txt",
+                        phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE.txt",
+                        phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_POS.txt",
+                        covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_COVA_GE_PEER_used.txt",
+                        output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_cis",
+                        output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_trans",
+                        cutoff_cis=1,cutoff_trans=1e-6,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer.RData")
+{
+  library(data.table)
+  snppos=fread(snpposfile,header=T)
+  snp=fread(snpfile,header=T)
+  for (chr in 1:23)
+  {
+    chrsnpfile=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/chr/",basename(snpfile),".chr",chr)
+    chrsnpposfile=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/chr/",basename(snpposfile),".chr",chr)
+    if (!file.exists(chrsnpfile))
+    {
+      cat(chr,"..")
+      idx=which(snppos$chr==chr)
+      chrsnp=snp[idx,]
+      chrsnppos=snppos[idx,]
+      fwrite(chrsnp,file=chrsnpfile,col.names=T,row.names=F,sep="\t")
+      fwrite(chrsnppos,file=chrsnpposfile,col.names=T,row.names=F,sep="\t")
+    }
+  }
+  mpi.bcast.Robj2slave(do_qtl)
+  mpi.bcast.Robj2slave(do_qtl_chr)
+  res=mpi.parSapply(X=1:23,FUN=do_qtl_chr,snpfile=snpfile,snpposfile=snpposfile,phenotypefile=phenotypefile,
+                    phenotypeposfile=phenotypeposfile,covariatefile=covariatefile,output_cis=output_cis,
+                    output_trans=output_trans,cutoff_cis=cutoff_cis,cutoff_trans=cutoff_trans,recordfile=recordfile,
+                    job.num=njobs)
+}
+
+do_qtl_chrs=function(chrs,snpfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_GE.txt",
+                        snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_POS.txt",
+                        phenotypefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE.txt",
+                        phenotypeposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_POS.txt",
+                        covariatefile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_COVA_GE_PEER_used.txt",
+                        output_cis="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_cis",
+                        output_trans="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_trans",
+                        cutoff_cis=1,cutoff_trans=1e-6,recordfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer.RData")
+{
+  library(data.table)
+  snppos=fread(snpposfile,header=T)
+  snp=fread(snpfile,header=T)
+  for (chr in chrs)
+  {
+    chrsnpfile=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/chr/",basename(snpfile),".chr",chr)
+    chrsnpposfile=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/chr/",basename(snpposfile),".chr",chr)
+    if (!file.exists(chrsnpfile))
+    {
+      cat(chr,"..")
+      idx=which(snppos$chr==chr)
+      chrsnp=snp[idx,]
+      chrsnppos=snppos[idx,]
+      fwrite(chrsnp,file=chrsnpfile,col.names=T,row.names=F,sep="\t")
+      fwrite(chrsnppos,file=chrsnpposfile,col.names=T,row.names=F,sep="\t")
+    }
+  }
+  for (chr in chrs)
+  {
+    print(paste0("chr",chr))
+    do_qtl_chr(chr=chr,snpfile=snpfile,snpposfile=snpposfile,phenotypefile=phenotypefile,
+               phenotypeposfile=phenotypeposfile,covariatefile=covariatefile,output_cis=output_cis,
+               output_trans=output_trans,cutoff_cis=cutoff_cis,cutoff_trans=cutoff_trans,recordfile=recordfile)
+  }
+}
 read_qtl_input=function(filename)
 {
   dat=read.table(filename,header=T,sep="\t",stringsAsFactors = F)
@@ -426,9 +557,9 @@ readqtlres=function(qtlresfile="eqtl_cis",colpvalue=5,snpposfile="eqtl_POS_SNP_G
   #get the total position
   eqtl_cis$SNP_posall=totalpos(chr=eqtl_cis$SNP_chr,pos=eqtl_cis$SNP_pos)
   eqtl_cis$gene_posall=totalpos(chr=eqtl_cis$gene_chr,pos=eqtl_cis$gene_pos)
-  levelmat=data.frame(value=-log10(eqtl_cis[,colpvalue]),pos1=eqtl_cis$SNP_posall,pos2=eqtl_cis$gene_posall,
-                      chr=eqtl_cis$SNP_chr,gene_chr=eqtl_cis$gene_chr,snp_idx=eqtl_cis$SNP_idx,
-                      opos1=eqtl_cis$SNP_pos,opos2=eqtl_cis$gene_pos,gene=eqtl_cis$gene,fdr=eqtl_cis$FDR,tstat=eqtl_cis$`t-stat`,beta=eqtl_cis$beta)
+  levelmat=data.frame(value=-log10(eqtl_cis[,colpvalue]),snppos_all=eqtl_cis$SNP_posall,genepos_all=eqtl_cis$gene_posall,
+                      chr=eqtl_cis$SNP_chr,gene_chr=eqtl_cis$gene_chr,SNP=eqtl_cis$SNP,snp_idx=eqtl_cis$SNP_idx,
+                      snppos=eqtl_cis$SNP_pos,genepos=eqtl_cis$gene_pos,gene=eqtl_cis$gene,fdr=eqtl_cis$FDR,tstat=eqtl_cis$`t-stat`,beta=eqtl_cis$beta)
   levelmat$chr=gsub(23,"X",levelmat$chr)
   levelmat$chr=gsub(24,"Y",levelmat$chr)
   # cc = colorRampPalette( c("green","white","red"))
@@ -622,11 +753,11 @@ update_highrisk_snp_idx=function(dat=validatepairs_HUTCH_ciseqtl)
   return(dat)
 }
 
-qqplot=function(pvalue=NULL,main="")
+qqplot=function(pvalue=NULL,main="",xlim=NULL,ylim=NULL)
 {
   n=length(pvalue)
   plot(-log((1:n)/n,base=10),-log(pvalue[order(pvalue)],base=10),xlab="expected p-value (log base 10)",
-       ylab="observed p-value (log base 10)",main=main,cex.lab=1.3,cex.axis=1.3)
+       ylab="observed p-value (log base 10)",main=main,xlim=xlim,ylim=ylim,cex.lab=1.3,cex.axis=1.3)
   abline(0,1,lty=2)
 }
 
@@ -994,11 +1125,21 @@ diff_tumror_normal_eqtl=function(dat1=highrisk_HUTCH_cis_eqtl_all,dat2=highrisk_
     }
   }
   
+  # Suppose there are three sets of data (1, 2, 3), with b1,v1, b2,v2,b3,v3 as their estimates and variances,   we want to combine 1 and 2, then compared the combined ½ to 3
+  # 
+  # To combine 1 and 2, the new beta would be
+  # 
+  # (w1*b1+w2*b2)/(w1+w2)
+  # 
+  # where w1 = 1/v1  and w2=1/v2
+  # 
+  # the new variance for combined estimated beta is
+  # 
+  # 1/(w1+w2)
   dat=merge(dat11,dat22,by=c("snp_idx","genename"))
   dat=merge(dat,dat33,by=c("snp_idx","genename"))
   dat$var=(dat$beta/dat$tstat)^2
   dat$pvalue=10^-dat$value
-  dat$beta2=NA
   dat$var2=NA
   dat$pvalue2=NA
   dat$pvalue_diff=NA
@@ -1025,6 +1166,21 @@ diff_tumror_normal_eqtl=function(dat1=highrisk_HUTCH_cis_eqtl_all,dat2=highrisk_
   pvalue=pvalue[idx]
   dat=dat[idx,]
   dat$pvalue_diff=pvalue
+  return(dat)
+}
+
+diff_2pairs_tumror_normal_eqtl=function(dat1=highrisk_hutch_cis_eqtl_all,dat2=highrisk_tbd_cis_eqtl_all)
+{
+  #pos1:snppos
+  dat=merge(dat1,dat2,by=c("SNP","chr","gene_chr","gene"))
+  dat$diff_genepos=dat$genepos.x-dat$genepos.y
+  dat$var.x=(dat$beta.x/dat$tstat.x)^2
+  dat$var.y=(dat$beta.y/dat$tstat.y)^2
+  dat$tscore=0
+  idx=which(!is.na(dat$tstat.x) & !is.na(dat$tstat.y) & dat$tstat.x!=0 & dat$tstat.y!=0)
+  dat$tscore[idx]=(dat$beta.x[idx]-dat$beta.y[idx])/sqrt(dat$var.x[idx]+dat$var.y[idx])
+  dat$pvalue=2*pnorm(abs(dat$tscore),lower.tail = F)
+  dat=dat[order(dat$pvalue),]
   return(dat)
 }
 

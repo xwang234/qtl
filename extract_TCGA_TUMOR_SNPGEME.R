@@ -79,6 +79,13 @@ idx=!grepl("FFPE",genotype_manifest$fileid)
 genotype_manifest=genotype_manifest[idx,]
 length(unique(genotype_manifest$sampleid))
 
+manifestfile="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/gdc_manifest_snv_genotype_blood.txt"
+#manifest=read.table(file=manifestfile,header=T,sep="\t",stringsAsFactors=F)
+metadatafile="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/metadata_snv_genotype_blood.json"
+#metadata=read.table(metadatafile,header=F,sep="\t",stringsAsFactors=F)
+genotype_blood_manifest=getTCGAsampleID(manifestfile,metadatafile,clinicfile)
+length(unique(genotype_blood_manifest$sampleid))
+
 #read data from manifest table
 #genotype
 readdatafrommanifest=function(loc="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/tumors/snv_genotype",manifest=NULL,sampleid=NULL)
@@ -126,6 +133,20 @@ for (i in 1:length(tcga_tumor_genotype_samples))
   rownames(genotypedata)=rownames(tmp)
   colnames(genotypedata)[i]=tcga_tumor_genotype_samples[i]
 }
+tcga_genotype_blood_samples=genotype_blood_manifest$sampleid
+blood_genotypedata=NULL
+for (i in 1:length(tcga_genotype_blood_samples))
+{
+  if (i %%50==0) cat(i,"..")
+  tmp=readdatafrommanifest(loc = "/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/genotype_blood",
+                           manifest = genotype_blood_manifest,sampleid=tcga_genotype_blood_samples[i])
+  blood_genotypedata=cbind(blood_genotypedata,tmp[,1])
+  rownames(blood_genotypedata)=rownames(tmp)
+  colnames(blood_genotypedata)[i]=tcga_genotype_blood_samples[i]
+}
+blood_genotypedata=as.data.frame(blood_genotypedata)
+
+
 
 #geneexpression data
 geneexpdata=NULL
@@ -153,6 +174,13 @@ for (i in 1:length(tcga_tumor_methylation_samples))
   colnames(methydata)[i]=tcga_tumor_methylation_samples[i]
 }
 methydata=as.data.frame(methydata)
-save(genotypedata,geneexpdata,methydata,file="/fh/fast/stanford_j/Xiaoyu/QTL/data/TCGAtumors.RData")
+save(genotypedata,blood_genotypedata,geneexpdata,methydata,file="/fh/fast/stanford_j/Xiaoyu/QTL/data/TCGAtumors.RData")
 
+idx=match(colnames(blood_genotypedata),colnames(genotypedata))
+tumor_genotypedata=genotypedata[,idx]
+for (i in 1:10)
+{
+  print(sum(tumor_genotypedata[,i]==blood_genotypedata[,i])/nrow(tumor_genotypedata))
+  #print(cor(tumor_genotypedata[,i],blood_genotypedata[,i]))
+}
 

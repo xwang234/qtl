@@ -1,16 +1,25 @@
-#!/usr/bin/env Rscript
-rm(list=ls())
-library(data.table,lib.loc="~/R/x86_64-pc-linux-gnu-library/3.3")
+#the file was copied from /fh/fast/daij/.../Tools/wang/prostate/process_TCGAnormals.R to generate genotypes from all 496 samples 
+setwd("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate")
+library(GenomicRanges)
 
+#process SNP6
+load("../../../Tools/wang/prostate/allhighrisksnps_new.RData")
+snp6_anno <- read.table(file="/fh/fast/dai_j/CancerGenomics/Tools/database/other/GenomeWideSNP_6.na35.annot.csv",skip=18,header=T,sep=",",stringsAsFactors=F)
+snp6_anno$Physical.Position=as.integer(snp6_anno$Physical.Position)
+sum(allsnps$snp %in% snp6_anno$dbSNP.RS.ID)
+overlapsnps=allsnps$snp[allsnps$snp %in% snp6_anno$dbSNP.RS.ID]
+idx1=match(overlapsnps,allsnps$snp)
+View(allsnps[idx1,])
+idx1=match(overlapsnps,snp6_anno$dbSNP.RS.ID)
+View(snp6_anno[idx1,])
+gr_allsnps=GRanges(seqnames = allsnps$chr,ranges=IRanges(start=allsnps$position,width = 1))
+idxNoNA=which(!is.na(snp6_anno$Physical.Position))
+gr_snp6_anno=GRanges(seqnames = snp6_anno$Chromosome[idxNoNA],ranges = IRanges(start=snp6_anno$Physical.Position[idxNoNA],width=1))
+length(intersect(gr_allsnps,gr_snp6_anno))
+tmp=distanceToNearest(gr_allsnps,gr_snp6_anno)
+quantile(tmp@elementMetadata$distance[tmp@elementMetadata$distance!=0])
+hist(tmp@elementMetadata$distance)
 
-#read seminal vesicles info
-#load("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/TCGAnormals.RData")
-normclinical=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/data/nationwidechildrens.org_ssf_normal_controls_prad.txt",skip=1,sep="\t",header=T,stringsAsFactors = F)
-normclinical=normclinical[-1,]
-idx=match(colnames(genotypedata),normclinical$bcr_patient_barcode)
-table(normclinical$normal_tissue_anatomic_site[idx])
-seminal_sampleid_bio=normclinical$bcr_patient_barcode[normclinical$normal_tissue_anatomic_site=="Seminal Vesicle"]
-#idx=which(colnames(genotypedata) %in% seminal_sampleid_bio) #seminal vesicle samples to be removed
 
 #process gene expression, RNA-Seq, Illumina HiSeq
 #to find the sampleID
@@ -59,9 +68,6 @@ getTCGAsampleID=function(manifestfile,metadatafile,clinicfile)
 geneexp_manifest=getTCGAsampleID(manifestfile,metadatafile,clinicfile)
 length(unique(geneexp_manifest$sampleid))
 #[1] 52
-length(unique(geneexp_manifest$sampleid)[!unique(geneexp_manifest$sampleid) %in% seminal_sampleid_bio])
-#[1] 48
-tcga_geneexp_samples=unique(geneexp_manifest$sampleid)
 
 #methylation, Illumina Human Methylation 450
 manifestfile="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/gdc_manifest_methylation.txt"
@@ -71,12 +77,9 @@ metadata=read.table(metadatafile,header=F,sep="\t",stringsAsFactors=F)
 methylation_manifest=getTCGAsampleID(manifestfile,metadatafile,clinicfile)
 length(unique(methylation_manifest$sampleid))
 #[1] 50
-length(unique(methylation_manifest$sampleid)[!unique(methylation_manifest$sampleid) %in% seminal_sampleid_bio])
-#[1] 46
 sum(unique(geneexp_manifest$sampleid) %in% unique(methylation_manifest$sampleid))
 #[1] 35
 comsampleid=unique(geneexp_manifest$sampleid)[unique(geneexp_manifest$sampleid) %in% unique(methylation_manifest$sampleid)]
-tcga_methylation_samples=unique(methylation_manifest$sampleid)
 
 #genotype/copynumber,Affymetrix SNP Array 6.0
 # manifestfile="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/gdc_manifest_snp6_solidtissue_estimatecopynumber.txt"
@@ -107,49 +110,9 @@ metadatafile="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/norma
 metadata=read.table(metadatafile,header=F,sep="\t",stringsAsFactors=F)
 genotype_blood_manifest=getTCGAsampleID(manifestfile,metadatafile,clinicfile="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/clinical_blood/e94c9009-baf3-4c0b-a736-1c5158a6d4b6/nationwidechildrens.org_biospecimen_portion_prad.txt")
 length(unique(genotype_blood_manifest$sampleid))
-#[1] 439
 
-#check overlap of solid normals and blood
 length(intersect(genotype_manifest$sampleid,genotype_blood_manifest$sampleid))
 #[1] 58
-
-#check overlap of geneexp with solid normals genotype
-sum(tcga_geneexp_samples %in% genotype_manifest$sampleid)
-#[1] 50
-sum(tcga_geneexp_samples %in% genotype_blood_manifest$sampleid)
-#[1] 46
-sum(tcga_geneexp_samples %in% c(genotype_manifest$sampleid,genotype_blood_manifest$sampleid))
-#[1] 52
-#46 from blood, 6 from solid normals
-tcga_blood_geneexp_samples=tcga_geneexp_samples[tcga_geneexp_samples %in% genotype_blood_manifest$sampleid]
-tcga_solid_geneexp_samples=tcga_geneexp_samples[!tcga_geneexp_samples %in% tcga_blood_geneexp_samples]
-
-#check overlap of methylation with solid normals genotype
-sum(tcga_methylation_samples %in% genotype_manifest$sampleid)
-#[1] 50
-sum(tcga_methylation_samples %in% genotype_blood_manifest$sampleid)
-#[1] 37
-sum(tcga_methylation_samples %in% c(genotype_manifest$sampleid,genotype_blood_manifest$sampleid))
-# 37 from blood 13 from solid normals
-tcga_blood_methylation_samples=tcga_methylation_samples[tcga_methylation_samples %in% genotype_blood_manifest$sampleid]
-tcga_solid_methylation_samples=tcga_methylation_samples[!tcga_methylation_samples %in% tcga_blood_methylation_samples]
-length(unique(c(tcga_blood_geneexp_samples,tcga_solid_geneexp_samples,tcga_blood_methylation_samples,tcga_solid_methylation_samples)))
-#[1] 67 total number of samples
-tcga_blood_genotype_samples=unique(c(tcga_blood_geneexp_samples,tcga_blood_methylation_samples))
-length(tcga_blood_genotype_samples)
-#[1] 54
-length(tcga_blood_genotype_samples[!tcga_blood_genotype_samples %in% seminal_sampleid_bio])
-#[1] 51
-tcga_solid_genotype_samples=unique(c(tcga_solid_geneexp_samples,tcga_solid_methylation_samples))
-length(tcga_solid_genotype_samples)
-#[1] 13
-length(tcga_solid_genotype_samples[!tcga_solid_genotype_samples %in% seminal_sampleid_bio])
-#[1] 11
-sum(tcga_geneexp_samples %in% c(tcga_blood_genotype_samples,tcga_solid_genotype_samples))
-sum(tcga_methylation_samples %in% c(tcga_blood_genotype_samples,tcga_solid_genotype_samples))
-
-
-
 length(intersect(comsampleid,genotype_blood_manifest$sampleid))
 #[1] 29
 head(which(genotype_blood_manifest$sampleid %in% comsampleid))
@@ -176,11 +139,7 @@ readdatafrommanifest=function(loc="/fh/fast/dai_j/CancerGenomics/prostate_methyl
   if (length(idx)>0)
   {
     thefile=paste0(loc,"/",manifest$fileid[idx],"/",manifest$filename[idx])
-    #res1=read.table(thefile,skip=1,header=T,sep="\t",row.names = 1)
-    res=fread(thefile,skip=1,header = T,sep="\t")
-    res=as.data.frame(res)
-    rownames(res)=res[,1]
-    res=res[,2:ncol(res)]
+    res=read.table(thefile,skip=1,header=T,sep="\t",row.names = 1)
   }
   return(res)
 }
@@ -194,76 +153,79 @@ readdatafrommanifest1=function(loc="/fh/fast/dai_j/CancerGenomics/prostate_methy
   if (length(idx)>0)
   {
     thefile=paste0(loc,"/",manifest$fileid[idx],"/",manifest$filename[idx])
-    #res=read.table(thefile,header=T,sep="\t",row.names = 1)
-    res=fread(thefile,header = T,sep="\t")
-    res=as.data.frame(res)
-    rownames(res)=res[,1]
-    res=res[,2:ncol(res),drop=F]
+    res=read.table(thefile,header=T,sep="\t",row.names = 1)
   }
   return(res)
 }
 
 #snp6 data
-#first read genotype solid
 genotypedata=NULL
-for (i in 1:length(tcga_solid_genotype_samples))
+for (i in 1:length(comsampleid))
 {
-  tmp=readdatafrommanifest(manifest = genotype_manifest,sampleid=tcga_solid_genotype_samples[i])
+  tmp=readdatafrommanifest(manifest = genotype_manifest,sampleid=comsampleid[i])
   genotypedata=cbind(genotypedata,tmp[,1])
   rownames(genotypedata)=rownames(tmp)
-  colnames(genotypedata)[i]=tcga_solid_genotype_samples[i]
-}
-#then add genotype blood
-for (i in 1:length(tcga_blood_genotype_samples))
-{
-  tmp=readdatafrommanifest(loc="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/genotype_blood",manifest = genotype_blood_manifest,sampleid=tcga_blood_genotype_samples[i])
-  genotypedata=cbind(genotypedata,tmp[,1])
-  rownames(genotypedata)=rownames(tmp)
-  colnames(genotypedata)[i+length(tcga_solid_genotype_samples)]=tcga_blood_genotype_samples[i]
+  colnames(genotypedata)[i]=comsampleid[i]
 }
 genotypedata=as.data.frame(genotypedata)
 
-
-#add other the blood normals
-
-other_bloodnormals=genotype_blood_manifest$sampleid[! genotype_blood_manifest$sampleid %in% c(tcga_blood_genotype_samples,tcga_solid_genotype_samples)]
-other_bloodgenotypedata=NULL
-for (i in 1:length(other_bloodnormals))
+#for all the solid normals
+solidnormals=c(genotype_manifest$sampleid[genotype_manifest$sampleid %in% comsampleid],genotype_manifest$sampleid[!genotype_manifest$sampleid %in% comsampleid])
+solidgenotypedata=NULL
+for (i in 1:length(solidnormals))
 {
-  if (i %% 100==0) cat(i,'..')
-  tmp=readdatafrommanifest(loc="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/genotype_blood",manifest = genotype_blood_manifest,sampleid=other_bloodnormals[i])
-  other_bloodgenotypedata=cbind(other_bloodgenotypedata,tmp[,1])
-  rownames(other_bloodgenotypedata)=rownames(tmp)
-  colnames(other_bloodgenotypedata)[i]=other_bloodnormals[i]
+  tmp=readdatafrommanifest(manifest = genotype_manifest,sampleid=solidnormals[i])
+  solidgenotypedata=cbind(solidgenotypedata,tmp[,1])
+  rownames(solidgenotypedata)=rownames(tmp)
+  colnames(solidgenotypedata)[i]=solidnormals[i]
 }
-other_bloodgenotypedata=as.data.frame(other_bloodgenotypedata)
-sum(colnames(genotypedata) %in% colnames(other_bloodgenotypedata))
-allnormalgenotypedata=cbind(genotypedata,other_bloodgenotypedata)
+solidgenotypedata=as.data.frame(solidgenotypedata)
+idx=match(comsampleid,colnames(solidgenotypedata))
+solidgenotypedata=cbind(solidgenotypedata[,idx],solidgenotypedata[,36:ncol(solidgenotypedata)])
 
-save(genotypedata,allnormalgenotypedata,file="/fh/fast/stanford_j/Xiaoyu/QTL/data/TCGAnormals.RData")
+#for all the blood normals
+
+bloodnormals=c(genotype_blood_manifest$sampleid[genotype_blood_manifest$sampleid %in% comsampleid],genotype_blood_manifest$sampleid[!genotype_blood_manifest$sampleid %in% comsampleid])
+bloodgenotypedata=NULL
+for (i in 1:length(bloodnormals))
+{
+  if (i %% 10==0) cat(i,'..')
+  tmp=readdatafrommanifest(loc="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/genotype_blood",manifest = genotype_blood_manifest,sampleid=bloodnormals[i])
+  bloodgenotypedata=cbind(bloodgenotypedata,tmp[,1])
+  rownames(bloodgenotypedata)=rownames(tmp)
+  colnames(bloodgenotypedata)[i]=bloodnormals[i]
+}
+bloodgenotypedata=as.data.frame(bloodgenotypedata)
+length(colnames(solidgenotypedata))
+#[1] 115
+#firt 115 columns are from solid tissue normals, first 35 are from the comsamples
+allnormalgenotypedata=cbind(solidgenotypedata,bloodgenotypedata[,!colnames(bloodgenotypedata) %in% colnames(solidgenotypedata)])
+
 
 #geneexpression data
 geneexpdata=NULL
-for (i in 1:length(c(tcga_solid_geneexp_samples,tcga_blood_geneexp_samples)))
+for (i in 1:length(comsampleid))
 {
-  tmp=readdatafrommanifest1(loc="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/geneexpression",manifest = geneexp_manifest,sampleid=c(tcga_solid_geneexp_samples,tcga_blood_geneexp_samples)[i])
+  tmp=readdatafrommanifest1(loc="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/geneexpression",manifest = geneexp_manifest,sampleid=comsampleid[i])
   geneexpdata=cbind(geneexpdata,tmp[,1])
   rownames(geneexpdata)=rownames(tmp)
-  colnames(geneexpdata)[i]=c(tcga_solid_geneexp_samples,tcga_blood_geneexp_samples)[i]
+  colnames(geneexpdata)[i]=comsampleid[i]
 }
 geneexpdata=as.data.frame(geneexpdata)
 
 #methylation data
 methydata=NULL
-for (i in 1:length(c(tcga_solid_methylation_samples,tcga_blood_methylation_samples)))
+for (i in 1:length(comsampleid))
 {
-  tmp=readdatafrommanifest(loc="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/methylation",manifest =methylation_manifest,sampleid=c(tcga_solid_methylation_samples,tcga_blood_methylation_samples)[i])
+  tmp=readdatafrommanifest(loc="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/methylation",manifest =methylation_manifest,sampleid=comsampleid[i])
   methydata=cbind(methydata,tmp[,1])
   rownames(methydata)=rownames(tmp)
-  colnames(methydata)[i]=c(tcga_solid_methylation_samples,tcga_blood_methylation_samples)[i]
+  colnames(methydata)[i]=comsampleid[i]
 }
 methydata=as.data.frame(methydata)
-save(genotypedata,geneexpdata,methydata,allnormalgenotypedata,file="/fh/fast/stanford_j/Xiaoyu/QTL/data/TCGAnormals.RData")
+sum(colnames(allnormalgenotypedata)[1:35]==colnames(geneexpdata))
+save(genotypedata,geneexpdata,methydata,solidgenotypedata,bloodgenotypedata,allnormalgenotypedata,file="TCGAnormals.RData")
+save(all496normalgenotypedata,file="/fh/fast/stanford_j/Xiaoyu/QTL/data/TCGA496normalgenotype.RData")
 #add probe position info
 
 #genotype
@@ -287,4 +249,40 @@ length(unique(ge_rnaseq_genes))-1 #-"?"
 length(unique(ge_array_anno$Symbol))
 #[1] 18895 number of genes on array geneexp
 
+#read seminal vesicles info
+#load("/fh/fast/dai_j/CancerGenomics/Tools/wang/prostate/TCGAnormals.RData")
+normclinical=read.table("/fh/fast/stanford_j/Xiaoyu/QTL/data/nationwidechildrens.org_ssf_normal_controls_prad.txt",skip=1,sep="\t",header=T,stringsAsFactors = F)
+normclinical=normclinical[-1,]
+idx=match(colnames(genotypedata),normclinical$bcr_patient_barcode)
+table(normclinical$normal_tissue_anatomic_site[idx])
+seminal_sampleid_bio=normclinical$bcr_patient_barcode[normclinical$normal_tissue_anatomic_site=="Seminal Vesicle"]
+idx=which(colnames(genotypedata) %in% seminal_sampleid_bio) #seminal vesicle samples to be removed
+#[1]  6 15 25
+
+# manifestfile="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/gdc_manifest_clinical_xml.txt"
+# manifest=read.table(file=manifestfile,header=T,sep="\t",stringsAsFactors=F)
+# metadatafile="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/metadata_clinical_xml.json"
+# metadata=read.table(metadatafile,header=F,sep="\t",stringsAsFactors=F)
+# clinical_xml_manifest=getTCGAsampleID(manifestfile,metadatafile,clinicfile="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/clinical_blood/e94c9009-baf3-4c0b-a736-1c5158a6d4b6/nationwidechildrens.org_biospecimen_portion_prad.txt")
+# length(unique(genotype_blood_manifest$sampleid))
+# seminal_sampleid_bio=normclinical$bcr_patient_barcode[normclinical$normal_tissue_anatomic_site=="Seminal Vesicle"]
+# length(seminal_sampleid_bio)
+# length(unique(seminal_sampleid_bio))
+
+#using xml files
+folder="/fh/fast/dai_j/CancerGenomics/prostate_methylation/data/TCGA/normals/clinical_SSF"
+idxseminal=NULL
+xmlsampleid=NULL
+tmp=system(paste0("grep -i -c Seminal ",folder,"/","*/*.xml"),intern = TRUE)
+for (i in 1:length(tmp))
+{
+    tmp1=unlist(strsplit(tmp[i],":"))
+    if (tmp1[2]!="0") idxseminal=c(idxseminal,i)
+    tmp1=unlist(strsplit(tmp[i],".",fixed = T))
+    xmlsampleid=c(xmlsampleid,tmp1[3])
+}
+length(idxseminal)
+length(unique(xmlsampleid[idxseminal]))
+seminal_sampleid_xml=unique(xmlsampleid[idxseminal])
+sum(seminal_sampleid_xml %in% seminal_sampleid_bio)
 

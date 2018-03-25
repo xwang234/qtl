@@ -347,3 +347,35 @@ par(mar=c(5.1,5.1,4.1,2.1))
 plot(c(TCGA_ME_SNP[73,]),c(TCGA_ME[idx1,]), xlab="Genotype (dosage)",ylab="Methylation",
      cex.lab=1.5,cex.axis=1.5)
 dev.off()
+
+#check distribution of CpGs in validated mqtl
+dat1=merge(validatepairs_HUTCH_cismqtl_fwer,anno,by.x="gene",by.y="IlmnID")
+idx=duplicated(dat1$gene)
+dat1=dat1[!idx,]
+dat=data.frame(chr=dat1$chr.x,pos=dat1$opos2.x,value=dat1$value.y)
+tmp=plotgenome(dat)
+tmp1=diff(tmp$posall)
+quantile(tmp1)
+#          0%         25%         50%         75%        100% 
+# 2.0       190.5      2340.0     64981.0 175977933.0 
+
+#whether the  top mediation triplets , the CpG and the gene transcript are correlated in TCGA data
+idx1=which(rownames(HUTCH_GE)=="ILMN_1697499")
+idx1=which(hutch_ge_anno$Probe_Id=="ILMN_1697499")
+genename=hutch_ge_anno$Symbol[idx1]
+idx1=which(grepl(genename,rownames(TCGA_GE)))
+idx2=which(rownames(TCGA_ME)=="cg15708909")
+tcga_comsamples=intersect(colnames(TCGA_GE),colnames(TCGA_ME))
+tmp1=match(tcga_comsamples,colnames(TCGA_GE))
+tmp2=match(tcga_comsamples,colnames(TCGA_ME))
+cor(unlist(TCGA_GE[idx1,tmp1]),unlist(TCGA_ME[idx2,tmp2]))
+#[1] -0.5408656
+idx1=which(rownames(HUTCH_GE)=="ILMN_1697499")
+HUTCH_ME=read_qtl_input_matrix("../result/qtl_input/HUTCH_ME.txt")
+idx2=which(rownames(HUTCH_ME)=="cg15708909")
+hutch_comsamples=intersect(colnames(HUTCH_GE),colnames(HUTCH_ME))
+tmp1=match(hutch_comsamples,colnames(HUTCH_GE))
+tmp2=match(hutch_comsamples,colnames(HUTCH_ME))
+cor(unlist(HUTCH_GE[idx1,tmp1]),unlist(HUTCH_ME[idx2,tmp2]))
+# [1] -0.7100514
+

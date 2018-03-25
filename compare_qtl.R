@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-library(data.table,lib.loc="~/R/x86_64-pc-linux-gnu-library/3.3")
+library(data.table)
 library(sas7bdat)
 source("functions.R")
 plotgenome=function(data,ylab="",main="",qvalues=NULL,qcutoff=0.05)
@@ -1431,3 +1431,109 @@ idx=which(validate_TCGA_highrisk_ciseqtl_pear_in_gtex$beta.x*validate_TCGA_highr
 length(unique(validate_TCGA_highrisk_ciseqtl_pear_in_gtex$snp_idx[idx]))
 idx=which(validate_TCGA_highrisk_ciseqtl_pear_in_gtex$beta.x*validate_TCGA_highrisk_ciseqtl_pear_in_gtex$beta<0)
 validate_TCGA_highrisk_ciseqtl_pear_in_gtex$value[idx]
+
+#MAR19, check betta difference
+source("functions.R")
+#for highrisk SNPs
+highrisk_tbd_cis_eqtl_all=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_highrisk_peer_cis_all",
+                        snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                        geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_POS.txt",fdrcutoff = 1)
+
+highrisk_hutch_cis_eqtl_all=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_highrisk_peer_cis",
+                                      snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_highrisk_SNP_POS.txt",
+                                      geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene_POS.txt",fdrcutoff = 1)
+diff_highrisk_hutch_tbd=diff_2pairs_tumror_normal_eqtl()
+#diff_highrisk_hutch_tbd$value.x: -log10(pvalue) of hutch eqtl result
+#diff_highrisk_hutch_tbd$value.y: -log10(pvalue) of mayo eqtl result
+#pvalue is for the beta difference
+
+qqplot(diff_highrisk_hutch_tbd$pvalue,ylim=c(0,10))
+nrow(diff_highrisk_hutch_tbd) #[1] 2154
+sum(diff_highrisk_hutch_tbd$pvalue<0.05/nrow(diff_highrisk_hutch_tbd)) #[1] 25
+idx=which(diff_highrisk_hutch_tbd$pvalue<0.05/nrow(diff_highrisk_hutch_tbd))
+sum(length(unique(diff_highrisk_hutch_tbd$gene[idx]))) #25 genes
+sum(length(unique(diff_highrisk_hutch_tbd$pos1[idx]))) #21 snps
+#for genome wide snps
+hutch_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer_cis (copy)",
+                        snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",
+                        geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene_POS.txt",fdrcutoff = 1)
+
+tbd_cis_eqtl=readqtlres(qtlresfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_cis (copy)",
+                        snpposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_POS.txt",
+                        geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_POS.txt",fdrcutoff = 1)
+diff_hutch_tbd=diff_2pairs_tumror_normal_eqtl(dat1=hutch_cis_eqtl,dat2=tbd_cis_eqtl)
+
+nrow(diff_hutch_tbd) #[1] 172127
+sum(diff_hutch_tbd$pvalue<0.05/nrow(diff_hutch_tbd)) #[1] 48877
+idx=which(diff_hutch_tbd$pvalue<0.05/nrow(diff_hutch_tbd))
+sum(length(unique(diff_hutch_tbd$gene[idx]))) #590 genes
+sum(length(unique(diff_hutch_tbd$pos1[idx]))) #45998 snps
+diff_hutch_tbd[1:3,c(2,5,6,11,12,13,18,19,20,21,22,23)]
+#       chr    gene  value.x   tstat.x     beta.x  value.y   tstat.y    beta.y       var.x       var.y    tscore
+# 137903  22 FAM118A 72.09058 -23.49460 -1.4718698 202.9762  55.51274  1.904622 0.003924666 0.001177151 -47.27192
+# 137904  22 FAM118A 72.32216  23.55460  1.4783437 201.0987 -54.90545 -1.883243 0.003939120 0.001176473  46.99984
+# 82158   11  MRPL21 41.06566 -15.64257 -0.6836446 160.3839  42.85082  1.220973 0.001910049 0.000811884 -36.50641
+#        pvalue
+# 137903  0.000000e+00
+# 137904  0.000000e+00
+# 82158  8.775074e-292
+diff_highrisk_hutch_tbd[1:3,c(2,5,6,11,12,13,18,19,20,21,22,23)]
+
+
+
+hutch_gene=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene.txt",header=T)
+tbd_gene=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE.txt",header=T)
+hutch_snp=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_GE.txt",header=T)
+hutch_snppos=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",header=T)
+tbd_snp=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_GE.txt",header=T)
+tbd_snppos=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_POS.txt",header=T)
+testid=3
+idx1=which(hutch_gene$id==diff_hutch_tbd$gene[testid])
+idx2=which(tbd_gene$id==diff_hutch_tbd$gene[testid])
+tmp=data.frame(normal=unlist(tbd_gene[idx2,2:ncol(tbd_gene)]))
+tmp$tumor=NA
+tmp$tumor[1:(ncol(hutch_gene)-1)]=unlist(hutch_gene[idx1,2:ncol(hutch_gene)])
+boxplot(tmp)
+
+boxplot(unlist(hutch_snp[diff_hutch_tbd$snp_idx.x[testid],2:ncol(hutch_snp)]))
+boxplot(unlist(tbd_snp[diff_hutch_tbd$snp_idx.y[testid],2:ncol(tbd_snp)]))
+snp_pvalue=rep(NA,nrow(diff_hutch_tbd))
+for (i in 1:nrow(diff_hutch_tbd))
+{
+  if (i %%10000==0) cat(i,"..")
+  snp_pvalue[i]=t.test(unlist(hutch_snp[diff_hutch_tbd$snp_idx.x[i],2:ncol(hutch_snp)]),
+                       unlist(tbd_snp[diff_hutch_tbd$snp_idx.y[i],2:ncol(tbd_snp)]))$p.value
+}
+png("qqplot_topgenotype.png")
+qqplot(snp_pvalue,main="genotype (p<1e-4)")
+dev.off()
+diff_chrs_hutch_tbd=NULL
+for (chr in 7:23)
+{
+  cat(chr,"..")
+  hutch_cis_eqtl_chr=readqtlres(qtlresfile=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/HUTCH/eqtl_gene_peer_cis.chr",chr),
+                            snpposfile=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/chr/HUTCH_SNP_POS.txt.chr",chr),
+                            geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene_POS.txt",fdrcutoff = 1)
+  
+  tbd_cis_eqtl_chr=readqtlres(qtlresfile=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/TBD/eqtl_peer_cis.chr",chr),
+                          snpposfile=paste0("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/chr/TBD_SNP_POS.txt.chr",chr),
+                          geposfile="/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_POS.txt",fdrcutoff = 1)
+  tmp=diff_2pairs_tumror_normal_eqtl(dat1=hutch_cis_eqtl_chr,dat2=tbd_cis_eqtl_chr)
+  diff_chrs_hutch_tbd=rbind(diff_chrs_hutch_tbd,tmp)
+}
+
+qqplot(diff_chrs_hutch_tbd$pvalue,main="All pairs")
+
+#compare hutch and tbd data
+snppos1=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_SNP_POS.txt",header=T)
+snppos2=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_SNP_POS.txt",header=T)
+genepos1=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/HUTCH_GE_gene_POS.txt")
+genepos2=fread("/fh/fast/stanford_j/Xiaoyu/QTL/result/qtl_input/TBD_GE_POS.txt")
+tmp=merge(snppos1,snppos2,by=c("chr","pos"))
+nrow(tmp) #[1] 6842398
+nrow(snppos1) #[1] 6835832
+nrow(snppos2) #[1] 7262931
+nrow(genepos1) #[1] 18077
+nrow(genepos2) #[1] 16898
+
+
